@@ -29,6 +29,7 @@
 .claude/
 .claude/*
 !.claude/projects
+CLAUDE.md
 
 # ============================================
 # DEPENDENCIES
