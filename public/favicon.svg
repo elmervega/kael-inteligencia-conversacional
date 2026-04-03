@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <defs>
+    <linearGradient id="g1" x1="16" y1="0" x2="16" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#3b82f6"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="16" y1="0" x2="16" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#818cf8" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.05"/>
+    </linearGradient>
+  </defs>
+  <!-- Fondo redondeado -->
+  <rect width="32" height="32" rx="8" fill="#050505"/>
+  <!-- Diamante relleno sutil -->
+  <polygon points="16,2 30,16 16,30 2,16" fill="url(#g2)"/>
+  <!-- Diamante contorno principal -->
+  <polygon points="16,2 30,16 16,30 2,16" stroke="url(#g1)" stroke-width="1.5" fill="none"/>
+  <!-- Diamante interior -->
+  <polygon points="16,8 24,16 16,24 8,16" stroke="url(#g1)" stroke-width="0.8" stroke-opacity="0.5" fill="none"/>
+  <!-- Punto central -->
+  <circle cx="16" cy="16" r="1.5" fill="#6366f1"/>
+</svg>
