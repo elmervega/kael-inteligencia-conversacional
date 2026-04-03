@@ -15,6 +15,8 @@
 | **Claude AI Integration** | ○ INACTIVO | Integración centralizada con Claude | Utilidad para otros workflows |
 | **Email Notifications** | ✅ ACTIVO | Envía emails de notificación | Notificaciones por email |
 | **Audio Transcription (Whisper)** | ✅ ACTIVO | Transcribe audio con Whisper | Conversión de audio a texto |
+| **Kael Reminders** | ✅ ACTIVO | Administra recordatorios programados | Recordatorios y tareas |
+| **Kael Memory System** | ✅ ACTIVO | Mantiene contexto de conversaciones | Memoria y contexto de Kael |
 
 ---
 
@@ -254,6 +256,88 @@ Ver ejecuciones de workflows:
 2. Click en el workflow deseado
 3. Tab "Executions" muestra histórico
 4. Ver logs: Click en ejecución → Details
+
+---
+
+## 🔧 Workflow 6: Kael Reminders
+
+**Estado:** ✅ ACTIVO  
+**Descripción:** Administra recordatorios y tareas programadas de usuarios
+
+**Webhook URL:** `https://n8n.kael.quest/webhook/kael-reminders`
+
+**Propósito:**
+- Usuarios pueden programar recordatorios
+- Se envían en la plataforma que eligieron (Telegram, WhatsApp, etc.)
+- Integrado con scheduler de n8n
+
+**Nodos:**
+1. **Webhook Reminder** - Recibe peticiones de nuevo recordatorio
+2. **Check Time** - Valida horario y formato
+3. **Send to Telegram** - Envía recordatorio en el momento
+
+**Parámetros esperados:**
+```json
+{
+  "user_id": "usuario_telegram_123",
+  "reminder_text": "Tomar agua",
+  "scheduled_time": "2026-04-03T10:30:00Z",
+  "chat_id": "123456789"
+}
+```
+
+**Endpoints conectados:**
+- `POST /api/reminders/schedule` - Programar nuevo recordatorio
+- `POST /api/reminders/list` - Listar recordatorios activos
+
+---
+
+## 🧠 Workflow 7: Kael Memory System
+
+**Estado:** ✅ ACTIVO  
+**Descripción:** Mantiene contexto y memoria de conversaciones para inteligencia de Kael
+
+**Webhook URL:** `https://n8n.kael.quest/webhook/kael-memory`
+
+**Propósito:**
+- Kael **recuerda conversaciones previas** del usuario
+- Mantiene contexto para respuestas más personalizadas
+- Almacena preferencias y datos importantes
+
+**Nodos:**
+1. **Webhook Memory** - Recibe solicitud de conversación
+2. **Get Context** - Recupera conversaciones previas
+3. **Claude with Context** - Responde con contexto histórico
+4. **Store Message** - Guarda nueva conversación en memoria
+
+**Flujo:**
+1. Usuario envía mensaje → Webhook recibe
+2. Sistema busca conversaciones previas del usuario
+3. Claude lee contexto + nuevo mensaje
+4. Responde de forma coherente con historia
+5. Guarda interacción para futuras referencias
+
+**Parámetros esperados:**
+```json
+{
+  "user_id": "usuario_telegram_123",
+  "message": "¿Cómo me llamabas antes?",
+  "platform": "telegram"
+}
+```
+
+**Endpoints conectados:**
+- `POST /api/memory/store` - Guardar conversación
+- `POST /api/memory/retrieve` - Recuperar contexto
+
+**Ejemplo de contexto:**
+```
+Usuario: Hola Kael
+Kael: Hola, ¿cómo estás?
+---
+Usuario: ¿Cuál es mi nombre?
+Kael: Tu nombre es Elmer
+```
 
 ---
 
