@@ -1,8 +1,8 @@
 # 🚀 N8N Workflows Documentation
 
-**Status:** ✅ COMPLETADO - 5/5 Workflows Creados  
+**Status:** ✅ COMPLETADO - 6 Workflows + Memoria integrada  
 **Fecha:** 2026-04-03  
-**Versión:** 1.0
+**Versión:** 2.0 (Arquitectura mejorada - Todo en N8N)
 
 ---
 
@@ -10,37 +10,62 @@
 
 | Workflow | Estado | Descripción | Propósito |
 |----------|--------|-------------|----------|
-| **Telegram Bot Handler** | ✅ ACTIVO | Recibe mensajes de Telegram | Conversaciones via Telegram |
+| **Telegram with Memory** | ✅ ACTIVO | Maneja Telegram + memoria integrada | Conversaciones inteligentes con contexto |
 | **WhatsApp Conversational** | ✅ ACTIVO | Maneja mensajes WhatsApp | Conversaciones via WhatsApp |
 | **Claude AI Integration** | ○ INACTIVO | Integración centralizada con Claude | Utilidad para otros workflows |
 | **Email Notifications** | ✅ ACTIVO | Envía emails de notificación | Notificaciones por email |
 | **Audio Transcription (Whisper)** | ✅ ACTIVO | Transcribe audio con Whisper | Conversión de audio a texto |
 | **Kael Reminders** | ✅ ACTIVO | Administra recordatorios programados | Recordatorios y tareas |
-| **Kael Memory System** | ✅ ACTIVO | Mantiene contexto de conversaciones | Memoria y contexto de Kael |
 
 ---
 
-## 🔧 Workflow 1: Telegram Bot Handler
+## 🔧 Workflow 1: Telegram with Memory
 
 **Estado:** ✅ ACTIVO  
-**Descripción:** Recibe mensajes de Telegram y responde con Claude AI
+**Descripción:** Maneja Telegram + Recupera memoria + Responde con Claude - TODO INTEGRADO EN N8N
 
-**Nodos:**
-1. **Telegram Trigger**
-   - Tipo: `n8n-nodes-base.telegramTrigger`
-   - Configuración: Escucha mensajes (`events: message`)
-   - Parámetros: Requiere Bot Token de @BotFather
+**Nodos en el workflow:**
+1. **Telegram Trigger** → Recibe mensaje
+2. **Get User Memory** → Query a PostgreSQL (historial del usuario)
+3. **Extract Context** → Procesa contexto histórico
+4. **Claude with Memory** → Claude responde con contexto
+5. **Store Response in Memory** → Guarda nueva conversación
+6. **Send Telegram Response** → Envía respuesta al usuario
 
-**Flujo:**
-- Usuario envía mensaje a bot de Telegram
-- Trigger captura el mensaje
-- (Próximamente) Envía a Claude para respuesta
-- (Próximamente) Devuelve respuesta al usuario
+**Flujo Completo:**
+```
+Usuario envía: "Hola, ¿qué me dijiste ayer?"
+    ↓
+Telegram Trigger captura
+    ↓
+Get Memory: Query a conversation_memory table
+    ↓
+Obtiene: "Ayer te dije que cuides tu salud"
+    ↓
+Claude procesa contexto + nueva pregunta
+    ↓
+Claude responde: "Ayer te dije que cuides tu salud. ¿Cómo te sientes hoy?"
+    ↓
+Store Response: Guarda en PostgreSQL
+    ↓
+Send: Telegram recibe respuesta
+```
 
-**Próximos pasos:**
-1. Agregar nodo Claude AI
-2. Agregar nodo Telegram Send Message
-3. Conectar flujo completo
+**Ventajas:**
+- ✅ TODO en N8N (sin dependencias externas)
+- ✅ Memoria en PostgreSQL (persistente)
+- ✅ Contexto histórico automático
+- ✅ Respuestas personalizadas
+
+**Tabla de almacenamiento:**
+```sql
+conversation_memory (
+  id, user_id, user_message, 
+  kael_response, timestamp, platform
+)
+```
+
+**Token Telegram:** ✅ Configurado en `.env`
 
 ---
 
@@ -211,41 +236,48 @@
 ## 📡 Webhook URLs Disponibles
 
 ```
-Telegram:           https://n8n.kael.quest/webhook/telegram-bot-handler
-WhatsApp:           https://n8n.kael.quest/webhook/whatsapp-conversational
-Email:              https://n8n.kael.quest/webhook/email-notifications
-Audio:              https://n8n.kael.quest/webhook/audio-transcription
+Telegram (con Memory):  https://n8n.kael.quest/webhook/telegram-with-memory
+WhatsApp:               https://n8n.kael.quest/webhook/whatsapp-conversational
+Email:                  https://n8n.kael.quest/webhook/email-notifications
+Audio:                  https://n8n.kael.quest/webhook/audio-transcription
 ```
 
 ---
 
-## ✅ Checklist de Configuración Pendiente
+## ✅ Configuración Completada
 
-- [ ] Agregar Bot Token de Telegram a Telegram Trigger
-- [ ] Configurar WhatsApp Business API
-- [ ] Conectar Gmail/SMTP para Email Notifications
-- [ ] Completar flujos con nodos adicionales
-- [ ] Testear cada workflow
-- [ ] Conectar webhooks desde kael-web
+- ✅ Telegram Bot Token configurado
+- ✅ Memoria integrada en N8N
+- ✅ PostgreSQL conversation_memory table creada
+- ✅ Workflows 100% en N8N (sin dependencias externas)
+- ✅ kael-web simplificado (sin endpoints de memoria)
+- ✅ Recordatorios y contexto integrados
 
 ---
 
-## 🔗 Conexión con kael-web
+## 🏗️ Arquitectura Mejorada
 
-Para conectar kael-web con los workflows:
-
-```javascript
-// Ejemplo: Llamar a workflow de email desde kael-web
-fetch('https://n8n.kael.quest/webhook/email-notifications', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    to: 'user@example.com',
-    subject: 'Verificación de cuenta',
-    body: '<h1>Bienvenido a Kael</h1>'
-  })
-})
 ```
+ANTES (Incorrecto):
+Telegram → N8N → kael-web (memoria) → PostgreSQL
+                ↓ endpoints innecesarios
+
+AHORA (Correcto):
+Telegram → N8N (obtiene memoria) → PostgreSQL
+              ↓
+          Claude con contexto
+              ↓
+          Respuesta personalizada
+              ↓
+          Guarda en BD
+```
+
+**Ventajas:**
+- ✅ Arquitectura más simple
+- ✅ Una única fuente de verdad (N8N)
+- ✅ Mejor rendimiento
+- ✅ Más fácil de mantener
+- ✅ Escalable
 
 ---
 
@@ -262,81 +294,31 @@ Ver ejecuciones de workflows:
 ## 🔧 Workflow 6: Kael Reminders
 
 **Estado:** ✅ ACTIVO  
-**Descripción:** Administra recordatorios y tareas programadas de usuarios
-
-**Webhook URL:** `https://n8n.kael.quest/webhook/kael-reminders`
+**Descripción:** Administra recordatorios programados (INTEGRADO EN N8N)
 
 **Propósito:**
-- Usuarios pueden programar recordatorios
-- Se envían en la plataforma que eligieron (Telegram, WhatsApp, etc.)
-- Integrado con scheduler de n8n
+- Usuarios programan recordatorios desde Telegram
+- Se guardan en PostgreSQL con timestamp
+- N8N scheduler dispara notificaciones en el momento
 
-**Nodos:**
-1. **Webhook Reminder** - Recibe peticiones de nuevo recordatorio
-2. **Check Time** - Valida horario y formato
-3. **Send to Telegram** - Envía recordatorio en el momento
-
-**Parámetros esperados:**
-```json
-{
-  "user_id": "usuario_telegram_123",
-  "reminder_text": "Tomar agua",
-  "scheduled_time": "2026-04-03T10:30:00Z",
-  "chat_id": "123456789"
-}
+**Ejemplo de uso:**
+```
+Usuario a Kael: "Recuérdame en 2 horas que debo tomar agua"
+    ↓
+N8N almacena en tabla: reminders
+    ↓
+Timer scheduled en N8N
+    ↓
+En 2 horas: N8N envía mensaje a Telegram
+"⏰ Recordatorio: Debes tomar agua"
 ```
 
-**Endpoints conectados:**
-- `POST /api/reminders/schedule` - Programar nuevo recordatorio
-- `POST /api/reminders/list` - Listar recordatorios activos
-
----
-
-## 🧠 Workflow 7: Kael Memory System
-
-**Estado:** ✅ ACTIVO  
-**Descripción:** Mantiene contexto y memoria de conversaciones para inteligencia de Kael
-
-**Webhook URL:** `https://n8n.kael.quest/webhook/kael-memory`
-
-**Propósito:**
-- Kael **recuerda conversaciones previas** del usuario
-- Mantiene contexto para respuestas más personalizadas
-- Almacena preferencias y datos importantes
-
-**Nodos:**
-1. **Webhook Memory** - Recibe solicitud de conversación
-2. **Get Context** - Recupera conversaciones previas
-3. **Claude with Context** - Responde con contexto histórico
-4. **Store Message** - Guarda nueva conversación en memoria
-
-**Flujo:**
-1. Usuario envía mensaje → Webhook recibe
-2. Sistema busca conversaciones previas del usuario
-3. Claude lee contexto + nuevo mensaje
-4. Responde de forma coherente con historia
-5. Guarda interacción para futuras referencias
-
-**Parámetros esperados:**
-```json
-{
-  "user_id": "usuario_telegram_123",
-  "message": "¿Cómo me llamabas antes?",
-  "platform": "telegram"
-}
-```
-
-**Endpoints conectados:**
-- `POST /api/memory/store` - Guardar conversación
-- `POST /api/memory/retrieve` - Recuperar contexto
-
-**Ejemplo de contexto:**
-```
-Usuario: Hola Kael
-Kael: Hola, ¿cómo estás?
----
-Usuario: ¿Cuál es mi nombre?
-Kael: Tu nombre es Elmer
+**Tabla en PostgreSQL:**
+```sql
+reminders (
+  id, user_id, reminder_text,
+  scheduled_time, platform, created_at
+)
 ```
 
 ---
