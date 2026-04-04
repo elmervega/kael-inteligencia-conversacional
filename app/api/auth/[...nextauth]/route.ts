@@ -1,7 +1,6 @@
 import { NextRequest } from 'next/server'
 import { handlers } from '@/lib/auth'
-import { withRateLimit, rateLimitConfig, getClientIp } from '@/lib/rateLimit'
-import { checkRateLimit } from '@/lib/rateLimit'
+import { rateLimitConfig, getClientIp, checkRateLimit } from '@/lib/rateLimit'
 
 // Apply rate limiting to login endpoint
 // POST requests to /api/auth/callback/credentials are login attempts
@@ -24,4 +23,6 @@ async function authHandler(req: NextRequest) {
 }
 
 export const GET = handlers.GET
-export const POST = handlers.POST
+export async function POST(req: NextRequest) {
+  return authHandler(req)
+}
