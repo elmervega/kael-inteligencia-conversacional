@@ -12,10 +12,12 @@ model User {
   name      String?
   email     String    @unique
   password  String?
-  plan      String    @default("free")
-  createdAt DateTime  @default(now())
-  accounts  Account[]
-  sessions  Session[]
+  plan           String          @default("free")
+  telegramChatId String?
+  createdAt      DateTime        @default(now())
+  accounts       Account[]
+  sessions       Session[]
+  preferences    UserPreferences?
 }
 
 model Account {
@@ -68,4 +70,14 @@ model Recordatorio {
   completado Boolean?  @default(false)
 
   @@map("recordatorios")
+}
+
+model UserPreferences {
+  id                String @id @default(cuid())
+  userId            String @unique
+  kaelName          String @default("")
+  language          String @default("es")
+  tone              String @default("motivacional")
+  customInstruction String @default("")
+  user              User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
