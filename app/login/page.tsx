@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, Suspense } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
@@ -8,7 +8,7 @@ import Link from 'next/link'
 
 type ErrorType = 'credentials' | 'rate_limit' | 'server' | null
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const justRegistered = searchParams.get('registered') === '1'
@@ -49,9 +49,91 @@ export default function LoginPage() {
     router.push('/dashboard')
   }
 
-  const hasError = (field: 'email' | 'password') =>
-    errorType === 'credentials'
+  const hasError = () => errorType === 'credentials'
 
+  return (
+    <div className="border border-zinc-800 rounded-2xl p-8 bg-zinc-900/20 backdrop-blur-sm">
+      {justRegistered && (
+        <motion.div
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-start gap-2 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm mb-4"
+        >
+          <span className="shrink-0 mt-0.5">✓</span>
+          Cuenta creada. Inicia sesión para continuar.
+        </motion.div>
+      )}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="text-xs text-zinc-500 uppercase tracking-wider mb-2 block">Email</label>
+          <input
+            type="email"
+            value={form.email}
+            onChange={e => { setForm({ ...form, email: e.target.value }); setErrorType(null) }}
+            className={`w-full bg-zinc-900 border rounded-lg px-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none transition ${
+              hasError() ? 'border-red-500/60 focus:border-red-500' : 'border-zinc-800 focus:border-zinc-600'
+            }`}
+            placeholder="tu@email.com"
+            required
+          />
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs text-zinc-500 uppercase tracking-wider">Contraseña</label>
+            <Link href="/forgot-password" className="text-xs text-zinc-500 hover:text-zinc-300 transition">
+              ¿Olvidaste tu contraseña?
+            </Link>
+          </div>
+          <input
+            type="password"
+            value={form.password}
+            onChange={e => { setForm({ ...form, password: e.target.value }); setErrorType(null) }}
+            className={`w-full bg-zinc-900 border rounded-lg px-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none transition ${
+              hasError() ? 'border-red-500/60 focus:border-red-500' : 'border-zinc-800 focus:border-zinc-600'
+            }`}
+            placeholder="Tu contraseña"
+            required
+          />
+        </div>
+
+        {errorType && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={`flex items-start gap-2 p-3 rounded-lg text-sm ${
+              errorType === 'rate_limit'
+                ? 'bg-amber-500/10 border border-amber-500/30 text-amber-400'
+                : 'bg-red-500/10 border border-red-500/30 text-red-400'
+            }`}
+          >
+            <span className="mt-0.5 shrink-0">
+              {errorType === 'rate_limit' ? '⏳' : '⚠️'}
+            </span>
+            {errorMessages[errorType]}
+          </motion.div>
+        )}
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full py-3 bg-white text-black rounded-full text-sm font-medium hover:bg-zinc-100 transition disabled:opacity-50"
+        >
+          {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
+        </button>
+      </form>
+
+      <p className="text-center text-zinc-500 text-sm mt-6">
+        ¿No tienes cuenta?{' '}
+        <Link href="/register" className="text-white hover:text-zinc-300 transition">
+          Crear cuenta
+        </Link>
+      </p>
+    </div>
+  )
+}
+
+export default function LoginPage() {
   return (
     <main className="min-h-screen bg-[#050505] text-white flex items-center justify-center px-4">
       <motion.div
@@ -67,84 +149,11 @@ export default function LoginPage() {
           <p className="text-zinc-500 mt-2 text-sm">Bienvenido de vuelta</p>
         </div>
 
-        <div className="border border-zinc-800 rounded-2xl p-8 bg-zinc-900/20 backdrop-blur-sm">
-          {justRegistered && (
-            <motion.div
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex items-start gap-2 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm mb-4"
-            >
-              <span className="shrink-0 mt-0.5">✓</span>
-              Cuenta creada. Inicia sesión para continuar.
-            </motion.div>
-          )}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="text-xs text-zinc-500 uppercase tracking-wider mb-2 block">Email</label>
-              <input
-                type="email"
-                value={form.email}
-                onChange={e => { setForm({ ...form, email: e.target.value }); setErrorType(null) }}
-                className={`w-full bg-zinc-900 border rounded-lg px-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none transition ${
-                  hasError('email') ? 'border-red-500/60 focus:border-red-500' : 'border-zinc-800 focus:border-zinc-600'
-                }`}
-                placeholder="tu@email.com"
-                required
-              />
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs text-zinc-500 uppercase tracking-wider">Contraseña</label>
-                <Link href="/forgot-password" className="text-xs text-zinc-500 hover:text-zinc-300 transition">
-                  ¿Olvidaste tu contraseña?
-                </Link>
-              </div>
-              <input
-                type="password"
-                value={form.password}
-                onChange={e => { setForm({ ...form, password: e.target.value }); setErrorType(null) }}
-                className={`w-full bg-zinc-900 border rounded-lg px-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none transition ${
-                  hasError('password') ? 'border-red-500/60 focus:border-red-500' : 'border-zinc-800 focus:border-zinc-600'
-                }`}
-                placeholder="Tu contraseña"
-                required
-              />
-            </div>
-
-            {errorType && (
-              <motion.div
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`flex items-start gap-2 p-3 rounded-lg text-sm ${
-                  errorType === 'rate_limit'
-                    ? 'bg-amber-500/10 border border-amber-500/30 text-amber-400'
-                    : 'bg-red-500/10 border border-red-500/30 text-red-400'
-                }`}
-              >
-                <span className="mt-0.5 shrink-0">
-                  {errorType === 'rate_limit' ? '⏳' : '⚠️'}
-                </span>
-                {errorMessages[errorType]}
-              </motion.div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 bg-white text-black rounded-full text-sm font-medium hover:bg-zinc-100 transition disabled:opacity-50"
-            >
-              {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
-            </button>
-          </form>
-
-          <p className="text-center text-zinc-500 text-sm mt-6">
-            ¿No tienes cuenta?{' '}
-            <Link href="/register" className="text-white hover:text-zinc-300 transition">
-              Crear cuenta
-            </Link>
-          </p>
-        </div>
+        <Suspense fallback={
+          <div className="border border-zinc-800 rounded-2xl p-8 bg-zinc-900/20 backdrop-blur-sm animate-pulse h-64" />
+        }>
+          <LoginForm />
+        </Suspense>
       </motion.div>
     </main>
   )
