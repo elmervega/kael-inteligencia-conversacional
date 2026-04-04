@@ -5,54 +5,71 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 
+const API_ERROR_MESSAGES: Record<string, string> = {
+  'An account with this email already exists.': 'Ya existe una cuenta con este email. ¿Quieres iniciar sesión?',
+  'Invalid input provided. Please check your data.': 'Datos inválidos. Verifica los campos.',
+  'Too many requests. Please try again later.': 'Demasiados intentos. Intenta de nuevo en unos minutos.',
+}
+
 export default function RegisterPage() {
   const router = useRouter()
   const [form, setForm] = useState({ name: '', email: '', password: '' })
-  const [error, setError] = useState('')
+  const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string; general?: string }>({})
   const [loading, setLoading] = useState(false)
+  const [isEmailTaken, setIsEmailTaken] = useState(false)
+
+  const validate = () => {
+    const newErrors: typeof errors = {}
+    if (form.name.trim().length < 2) newErrors.name = 'Mínimo 2 caracteres'
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) newErrors.email = 'Email inválido'
+    if (!/^(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])(.{8,})$/.test(form.password)) {
+      newErrors.password = 'Mínimo 8 caracteres, una mayúscula, un número y un símbolo'
+    }
+    return newErrors
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault()
-  setLoading(true)
-  setError('')
+    e.preventDefault()
+    setIsEmailTaken(false)
 
-  // Validaciones
-  if (form.name.trim().length < 2) {
-    setError('El nombre debe tener al menos 2 caracteres')
-    setLoading(false)
-    return
+    const validationErrors = validate()
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors)
+      return
+    }
+
+    setErrors({})
+    setLoading(true)
+
+    const res = await fetch('/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form)
+    })
+
+    const data = await res.json()
+
+    if (!res.ok) {
+      const friendlyMessage = API_ERROR_MESSAGES[data.error] ?? data.error ?? 'Error al crear cuenta. Intenta de nuevo.'
+      if (data.error?.includes('email already exists') || data.code === 'EMAIL_ALREADY_EXISTS') {
+        setIsEmailTaken(true)
+        setErrors({ email: 'Ya existe una cuenta con este email.' })
+      } else if (res.status === 429) {
+        setErrors({ general: 'Demasiados intentos. Intenta de nuevo en unos minutos.' })
+      } else {
+        setErrors({ general: friendlyMessage })
+      }
+      setLoading(false)
+      return
+    }
+
+    router.push('/login?registered=1')
   }
 
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  if (!emailRegex.test(form.email)) {
-    setError('Por favor ingresa un email válido')
-    setLoading(false)
-    return
-  }
-
-  const passwordRegex = /^(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])(.{8,})$/
-  if (!passwordRegex.test(form.password)) {
-    setError('La contraseña debe tener al menos 8 caracteres, una mayúscula, un número y un símbolo')
-    setLoading(false)
-    return
-  }
-
-  const res = await fetch('/api/register', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(form)
-  })
-
-  const data = await res.json()
-
-  if (!res.ok) {
-    setError(data.error)
-    setLoading(false)
-    return
-  }
-
-  router.push('/login')
-}
+  const fieldClass = (field: keyof typeof errors) =>
+    `w-full bg-zinc-900 border rounded-lg px-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none transition ${
+      errors[field] ? 'border-red-500/60 focus:border-red-500' : 'border-zinc-800 focus:border-zinc-600'
+    }`
 
   return (
     <main className="min-h-screen bg-[#050505] text-white flex items-center justify-center px-4">
@@ -76,37 +93,56 @@ export default function RegisterPage() {
               <input
                 type="text"
                 value={form.name}
-                onChange={e => setForm({ ...form, name: e.target.value })}
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-600 transition"
+                onChange={e => { setForm({ ...form, name: e.target.value }); setErrors(p => ({ ...p, name: undefined })) }}
+                className={fieldClass('name')}
                 placeholder="Tu nombre"
                 required
               />
+              {errors.name && <p className="text-red-400 text-xs mt-1">{errors.name}</p>}
             </div>
+
             <div>
               <label className="text-xs text-zinc-500 uppercase tracking-wider mb-2 block">Email</label>
               <input
                 type="email"
                 value={form.email}
-                onChange={e => setForm({ ...form, email: e.target.value })}
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-600 transition"
+                onChange={e => { setForm({ ...form, email: e.target.value }); setErrors(p => ({ ...p, email: undefined })); setIsEmailTaken(false) }}
+                className={fieldClass('email')}
                 placeholder="tu@email.com"
                 required
               />
+              {errors.email && (
+                <p className="text-red-400 text-xs mt-1">
+                  {errors.email}
+                  {isEmailTaken && (
+                    <> — <Link href="/login" className="underline hover:text-red-300">Iniciar sesión</Link></>
+                  )}
+                </p>
+              )}
             </div>
+
             <div>
               <label className="text-xs text-zinc-500 uppercase tracking-wider mb-2 block">Contraseña</label>
               <input
                 type="password"
                 value={form.password}
-                onChange={e => setForm({ ...form, password: e.target.value })}
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-600 transition"
+                onChange={e => { setForm({ ...form, password: e.target.value }); setErrors(p => ({ ...p, password: undefined })) }}
+                className={fieldClass('password')}
                 placeholder="Mínimo 8 caracteres"
                 required
               />
+              {errors.password && <p className="text-red-400 text-xs mt-1">{errors.password}</p>}
             </div>
 
-            {error && (
-              <p className="text-red-400 text-sm">{error}</p>
+            {errors.general && (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-start gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm"
+              >
+                <span className="shrink-0 mt-0.5">⚠️</span>
+                {errors.general}
+              </motion.div>
             )}
 
             <button

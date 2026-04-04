@@ -1,21 +1,32 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { signIn } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 
+type ErrorType = 'credentials' | 'rate_limit' | 'server' | null
+
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const justRegistered = searchParams.get('registered') === '1'
   const [form, setForm] = useState({ email: '', password: '' })
-  const [error, setError] = useState('')
+  const [errorType, setErrorType] = useState<ErrorType>(null)
+  const [retryAfter, setRetryAfter] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
+
+  const errorMessages: Record<NonNullable<ErrorType>, string> = {
+    credentials: 'Email o contraseña incorrectos. Verifica tus datos.',
+    rate_limit: `Demasiados intentos.${retryAfter ? ` Intenta de nuevo en ${Math.ceil(retryAfter / 60)} minuto${retryAfter > 60 ? 's' : ''}.` : ' Intenta más tarde.'}`,
+    server: 'Error del servidor. Intenta de nuevo en unos momentos.'
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    setError('')
+    setErrorType(null)
 
     const res = await signIn('credentials', {
       email: form.email,
@@ -24,13 +35,22 @@ export default function LoginPage() {
     })
 
     if (res?.error) {
-      setError('Email o contraseña incorrectos')
+      if (res.status === 429) {
+        setErrorType('rate_limit')
+      } else if (res.status && res.status >= 500) {
+        setErrorType('server')
+      } else {
+        setErrorType('credentials')
+      }
       setLoading(false)
       return
     }
 
     router.push('/dashboard')
   }
+
+  const hasError = (field: 'email' | 'password') =>
+    errorType === 'credentials'
 
   return (
     <main className="min-h-screen bg-[#050505] text-white flex items-center justify-center px-4">
@@ -48,32 +68,65 @@ export default function LoginPage() {
         </div>
 
         <div className="border border-zinc-800 rounded-2xl p-8 bg-zinc-900/20 backdrop-blur-sm">
+          {justRegistered && (
+            <motion.div
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-start gap-2 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm mb-4"
+            >
+              <span className="shrink-0 mt-0.5">✓</span>
+              Cuenta creada. Inicia sesión para continuar.
+            </motion.div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="text-xs text-zinc-500 uppercase tracking-wider mb-2 block">Email</label>
               <input
                 type="email"
                 value={form.email}
-                onChange={e => setForm({ ...form, email: e.target.value })}
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-600 transition"
+                onChange={e => { setForm({ ...form, email: e.target.value }); setErrorType(null) }}
+                className={`w-full bg-zinc-900 border rounded-lg px-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none transition ${
+                  hasError('email') ? 'border-red-500/60 focus:border-red-500' : 'border-zinc-800 focus:border-zinc-600'
+                }`}
                 placeholder="tu@email.com"
                 required
               />
             </div>
+
             <div>
-              <label className="text-xs text-zinc-500 uppercase tracking-wider mb-2 block">Contraseña</label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs text-zinc-500 uppercase tracking-wider">Contraseña</label>
+                <Link href="/forgot-password" className="text-xs text-zinc-500 hover:text-zinc-300 transition">
+                  ¿Olvidaste tu contraseña?
+                </Link>
+              </div>
               <input
                 type="password"
                 value={form.password}
-                onChange={e => setForm({ ...form, password: e.target.value })}
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-600 transition"
+                onChange={e => { setForm({ ...form, password: e.target.value }); setErrorType(null) }}
+                className={`w-full bg-zinc-900 border rounded-lg px-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none transition ${
+                  hasError('password') ? 'border-red-500/60 focus:border-red-500' : 'border-zinc-800 focus:border-zinc-600'
+                }`}
                 placeholder="Tu contraseña"
                 required
               />
             </div>
 
-            {error && (
-              <p className="text-red-400 text-sm">{error}</p>
+            {errorType && (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`flex items-start gap-2 p-3 rounded-lg text-sm ${
+                  errorType === 'rate_limit'
+                    ? 'bg-amber-500/10 border border-amber-500/30 text-amber-400'
+                    : 'bg-red-500/10 border border-red-500/30 text-red-400'
+                }`}
+              >
+                <span className="mt-0.5 shrink-0">
+                  {errorType === 'rate_limit' ? '⏳' : '⚠️'}
+                </span>
+                {errorMessages[errorType]}
+              </motion.div>
             )}
 
             <button
