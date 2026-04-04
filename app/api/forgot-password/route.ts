@@ -4,9 +4,8 @@ import { Resend } from 'resend'
 import crypto from 'crypto'
 import { checkRateLimit } from '@/lib/rateLimit'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 export async function POST(req: NextRequest) {
+  const resend = new Resend(process.env.RESEND_API_KEY)
   const ip = req.headers.get('x-forwarded-for') ?? 'unknown'
   const rl = checkRateLimit(`forgot:${ip}`, 3, 15 * 60 * 1000)
   if (!rl.allowed) {
