@@ -6,6 +6,42 @@
 
 **Architecture:** Server components fetch data at the route level; client components handle interactivity (forms, navigation). `conversation_memory` and `reminders` tables are queried via `prisma.$queryRaw` since they are managed by n8n. New `UserPreferences` model added to Prisma for user configuration. Sidebar is a persistent client component wrapping all dashboard routes via `app/dashboard/layout.tsx`.
 
+## Feature Gating (Free vs Pro)
+
+Dashboard is accessible to ALL users. Features are gated by `session.user.plan`:
+
+| Feature | Free | Pro |
+|---------|------|-----|
+| Acceso al dashboard | ✅ | ✅ |
+| Configurar Kael (nombre, tono, idioma) | ✅ | ✅ |
+| Conversaciones — últimas 5 | ✅ | — |
+| Conversaciones — historial completo + paginación | 🔒 | ✅ |
+| Instrucción especial (customInstruction) | 🔒 | ✅ |
+| Recordatorios — ver activos | ✅ | ✅ |
+| Crear/eliminar recordatorios desde web | 🔒 | ✅ |
+
+**Implementation pattern:** Gating is enforced server-side in API routes (return 403 for locked features) AND shown client-side as a `<ProBadge>` component with an upgrade CTA. Never silently ignore the request — always show the user what they're missing.
+
+```typescript
+// Pattern used in every gated API route:
+const isPro = session.user.plan === 'pro'
+if (!isPro) {
+  return NextResponse.json({ error: 'Plan Pro requerido', upgrade: true }, { status: 403 })
+}
+```
+
+```typescript
+// ProBadge component (inline, no separate file needed):
+function ProBadge() {
+  return (
+    <div className="flex items-center gap-2 p-3 rounded-lg bg-violet-500/10 border border-violet-500/20">
+      <span className="text-violet-400 text-xs">💎 Función exclusiva del Plan Pro</span>
+      <a href="/dashboard/plan" className="text-xs text-violet-300 underline ml-auto">Mejorar</a>
+    </div>
+  )
+}
+```
+
 **Tech Stack:** Next.js 15 App Router, TypeScript, Prisma ORM, PostgreSQL, Tailwind CSS, Framer Motion, NextAuth v5
 
 ---
@@ -226,6 +262,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const isPro = (session.user as any).plan === 'pro'
+
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: { telegramChatId: true }
@@ -236,8 +274,10 @@ export async function GET(req: NextRequest) {
   }
 
   const { searchParams } = new URL(req.url)
-  const limit = Math.min(parseInt(searchParams.get('limit') ?? '20'), 100)
-  const offset = parseInt(searchParams.get('offset') ?? '0')
+  // Free users: max 5 conversations, no pagination
+  const requestedLimit = parseInt(searchParams.get('limit') ?? '20')
+  const limit = isPro ? Math.min(requestedLimit, 100) : 5
+  const offset = isPro ? parseInt(searchParams.get('offset') ?? '0') : 0
 
   const [conversations, countResult] = await Promise.all([
     prisma.$queryRaw<Array<{
@@ -265,7 +305,8 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     conversations,
-    total: Number(countResult[0]?.count ?? 0)
+    total: Number(countResult[0]?.count ?? 0),
+    isPro
   })
 }
 ```
@@ -337,6 +378,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const isPro = (session.user as any).plan === 'pro'
+  if (!isPro) {
+    return NextResponse.json({ error: 'Plan Pro requerido', upgrade: true }, { status: 403 })
+  }
+
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: { telegramChatId: true }
@@ -363,6 +409,11 @@ export async function DELETE(req: NextRequest) {
   const session = await auth()
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const isPro = (session.user as any).plan === 'pro'
+  if (!isPro) {
+    return NextResponse.json({ error: 'Plan Pro requerido', upgrade: true }, { status: 403 })
   }
 
   const user = await prisma.user.findUnique({
@@ -588,7 +639,16 @@ interface Prefs {
   telegramChatId: string
 }
 
-export default function KaelConfigForm() {
+function ProBadge() {
+  return (
+    <div className="flex items-center gap-2 p-2.5 rounded-lg bg-violet-500/10 border border-violet-500/20 mt-1">
+      <span className="text-violet-400 text-xs">💎 Función exclusiva del Plan Pro</span>
+      <a href="/dashboard/plan" className="text-xs text-violet-300 underline ml-auto whitespace-nowrap">Mejorar →</a>
+    </div>
+  )
+}
+
+export default function KaelConfigForm({ isPro = false }: { isPro?: boolean }) {
   const [prefs, setPrefs] = useState<Prefs>({
     kaelName: '', language: 'es', tone: 'motivacional',
     customInstruction: '', telegramChatId: ''
@@ -685,12 +745,16 @@ export default function KaelConfigForm() {
           <label className="block text-[0.7rem] uppercase tracking-wider text-zinc-500 mb-1.5 font-medium">
             Instrucción especial <span className="text-zinc-700 normal-case">(opcional)</span>
           </label>
-          <input
-            value={prefs.customInstruction}
-            onChange={e => setPrefs(p => ({ ...p, customInstruction: e.target.value }))}
-            placeholder="Ej: Siempre termina con una cita inspiradora"
-            className="w-full bg-[#0e0e0e] border border-[#282828] rounded-lg px-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-indigo-500 transition-colors"
-          />
+          {isPro ? (
+            <input
+              value={prefs.customInstruction}
+              onChange={e => setPrefs(p => ({ ...p, customInstruction: e.target.value }))}
+              placeholder="Ej: Siempre termina con una cita inspiradora"
+              className="w-full bg-[#0e0e0e] border border-[#282828] rounded-lg px-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-indigo-500 transition-colors"
+            />
+          ) : (
+            <ProBadge />
+          )}
         </div>
 
         <div>
@@ -844,7 +908,7 @@ export default async function DashboardPage() {
       {/* Main grid */}
       <div className="grid grid-cols-[1.45fr_1fr] gap-5">
         {/* Config — primary */}
-        <KaelConfigForm />
+        <KaelConfigForm isPro={(session.user as any).plan === 'pro'} />
 
         {/* Right column */}
         <div className="flex flex-col gap-5">
@@ -952,13 +1016,15 @@ export default async function ConversationsPage({
   const session = await auth()
   if (!session?.user?.id) redirect('/login')
 
+  const isPro = (session.user as any).plan === 'pro'
+
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: { telegramChatId: true }
   })
 
-  const page = parseInt((await searchParams).page ?? '1')
-  const limit = 20
+  const page = isPro ? parseInt((await searchParams).page ?? '1') : 1
+  const limit = isPro ? 20 : 5
   const offset = (page - 1) * limit
 
   let conversations: any[] = []
@@ -1024,7 +1090,14 @@ export default async function ConversationsPage({
             </div>
           ))}
 
-          {totalPages > 1 && (
+          {!isPro && total > 5 && (
+            <div className="flex items-center gap-2 p-4 rounded-xl bg-violet-500/10 border border-violet-500/20 mt-2">
+              <span className="text-violet-300 text-sm">💎 Tienes {total} mensajes en total. Actualiza a Pro para ver el historial completo.</span>
+              <Link href="/dashboard/plan" className="text-xs text-violet-300 underline ml-auto whitespace-nowrap">Mejorar →</Link>
+            </div>
+          )}
+
+          {isPro && totalPages > 1 && (
             <div className="flex justify-center gap-3 pt-4">
               {page > 1 && (
                 <Link href={`/dashboard/conversations?page=${page - 1}`}
@@ -1062,12 +1135,13 @@ git commit -m "feat: add conversations page with pagination"
 ## Task 10: Reminders Page
 
 **Files:**
-- Create: `app/dashboard/reminders/page.tsx`
+- Create: `app/dashboard/reminders/page.tsx` (server wrapper — reads session, passes isPro)
+- Create: `components/dashboard/RemindersClient.tsx` (client component — all interactivity)
 
-- [ ] **Step 1: Create page**
+- [ ] **Step 1: Create client component**
 
 ```typescript
-// app/dashboard/reminders/page.tsx
+// components/dashboard/RemindersClient.tsx
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
@@ -1080,7 +1154,7 @@ interface Reminder {
   sent: boolean
 }
 
-export default function RemindersPage() {
+export default function RemindersPage({ isPro = false }: { isPro?: boolean }) {
   const [reminders, setReminders] = useState<Reminder[]>([])
   const [loading, setLoading] = useState(true)
   const [noTelegram, setNoTelegram] = useState(false)
@@ -1132,31 +1206,38 @@ export default function RemindersPage() {
         </div>
       ) : (
         <>
-          {/* Add form */}
-          <div className="rounded-xl border border-[#1e1e1e] bg-[#111] p-5 mb-5">
-            <p className="text-sm font-medium text-zinc-300 mb-3">Nuevo recordatorio</p>
-            <div className="flex gap-3">
-              <input
-                value={newText}
-                onChange={e => setNewText(e.target.value)}
-                placeholder="¿Qué quieres recordar?"
-                className="flex-1 bg-[#0e0e0e] border border-[#282828] rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-indigo-500 transition-colors"
-              />
-              <input
-                type="datetime-local"
-                value={newDate}
-                onChange={e => setNewDate(e.target.value)}
-                className="bg-[#0e0e0e] border border-[#282828] rounded-lg px-3 py-2 text-sm text-zinc-100 outline-none focus:border-indigo-500 transition-colors"
-              />
-              <button
-                onClick={addReminder}
-                disabled={adding || !newText || !newDate}
-                className="px-4 py-2 rounded-lg text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-500 transition-colors disabled:opacity-50"
-              >
-                {adding ? '…' : 'Agregar'}
-              </button>
+          {/* Add form — Pro only */}
+          {isPro ? (
+            <div className="rounded-xl border border-[#1e1e1e] bg-[#111] p-5 mb-5">
+              <p className="text-sm font-medium text-zinc-300 mb-3">Nuevo recordatorio</p>
+              <div className="flex gap-3">
+                <input
+                  value={newText}
+                  onChange={e => setNewText(e.target.value)}
+                  placeholder="¿Qué quieres recordar?"
+                  className="flex-1 bg-[#0e0e0e] border border-[#282828] rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-indigo-500 transition-colors"
+                />
+                <input
+                  type="datetime-local"
+                  value={newDate}
+                  onChange={e => setNewDate(e.target.value)}
+                  className="bg-[#0e0e0e] border border-[#282828] rounded-lg px-3 py-2 text-sm text-zinc-100 outline-none focus:border-indigo-500 transition-colors"
+                />
+                <button
+                  onClick={addReminder}
+                  disabled={adding || !newText || !newDate}
+                  className="px-4 py-2 rounded-lg text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-500 transition-colors disabled:opacity-50"
+                >
+                  {adding ? '…' : 'Agregar'}
+                </button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex items-center gap-2 p-4 rounded-xl bg-violet-500/10 border border-violet-500/20 mb-5">
+              <span className="text-violet-300 text-sm">💎 Crea recordatorios desde la web con el Plan Pro.</span>
+              <a href="/dashboard/plan" className="text-xs text-violet-300 underline ml-auto whitespace-nowrap">Mejorar →</a>
+            </div>
+          )}
 
           {/* List */}
           {loading ? (
@@ -1198,11 +1279,27 @@ export default function RemindersPage() {
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [ ] **Step 2: Create server page wrapper**
+
+```typescript
+// app/dashboard/reminders/page.tsx
+import { auth } from '@/lib/auth'
+import { redirect } from 'next/navigation'
+import RemindersClient from '@/components/dashboard/RemindersClient'
+
+export default async function RemindersPage() {
+  const session = await auth()
+  if (!session?.user?.id) redirect('/login')
+  const isPro = (session.user as any).plan === 'pro'
+  return <RemindersClient isPro={isPro} />
+}
+```
+
+- [ ] **Step 3: Commit**
 
 ```bash
-git add app/dashboard/reminders/page.tsx
-git commit -m "feat: add reminders page with create and delete"
+git add components/dashboard/RemindersClient.tsx app/dashboard/reminders/page.tsx
+git commit -m "feat: add reminders page with pro gating"
 ```
 
 ---
