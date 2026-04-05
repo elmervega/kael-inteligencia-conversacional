@@ -24,16 +24,16 @@ jobs:
             git pull origin main
 
             echo "→ Running migrations"
-            sudo -u www-data npx prisma migrate deploy
+            npx prisma migrate deploy
 
             echo "→ Generating Prisma client"
-            sudo -u www-data npx prisma generate
+            npx prisma generate
 
             echo "→ Building"
-            sudo -u www-data npm run build
+            npm run build
 
             echo "→ Restarting service"
-            systemctl restart kael-web
+            sudo systemctl restart kael-web
 
             echo "→ Health check"
             sleep 3
