@@ -476,19 +476,16 @@ export default function Home() {
             transition={{ duration: 0.7 }}
             className="text-center mb-16"
           >
-            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-400 text-xs font-medium mb-6">
-              <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />
-              Solo Plan Pro
-            </span>
             <p className="text-xs tracking-[0.2em] uppercase text-zinc-600 mb-4">Tu panel de control</p>
             <h2 className="text-5xl md:text-6xl font-bold tracking-tight mb-6">
               Kael a tu manera
             </h2>
             <p className="text-zinc-500 font-light max-w-xl mx-auto">
-              Configura su personalidad, revisa tu historial de conversaciones y gestiona tus recordatorios desde un solo lugar.
+              Desde el dashboard configuras su personalidad, revisas conversaciones y gestionas recordatorios. Todo en un solo lugar.
             </p>
           </motion.div>
 
+          {/* Mock dashboard — visual rico */}
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -496,45 +493,97 @@ export default function Home() {
             transition={{ duration: 0.8, delay: 0.1 }}
             className="relative"
           >
-            <div className="absolute inset-0 bg-violet-500/[0.04] rounded-2xl blur-2xl" />
-            <div className="relative border border-zinc-800 rounded-2xl overflow-hidden bg-[#0d0d0d]">
-              <div className="flex items-center gap-2 px-5 py-3.5 border-b border-zinc-800/80 bg-[#111]">
+            {/* Glow */}
+            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500/10 via-violet-500/10 to-indigo-500/10 rounded-3xl blur-2xl" />
+
+            <div className="relative border border-zinc-800 rounded-2xl overflow-hidden bg-[#0d0d0d] shadow-2xl">
+              {/* Browser bar */}
+              <div className="flex items-center gap-3 px-5 py-3.5 border-b border-zinc-800/80 bg-[#111]">
                 <div className="flex gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-zinc-700" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-zinc-700" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-zinc-700" />
+                  <div className="w-3 h-3 rounded-full bg-zinc-700" />
+                  <div className="w-3 h-3 rounded-full bg-zinc-700" />
+                  <div className="w-3 h-3 rounded-full bg-zinc-700" />
                 </div>
-                <span className="text-xs text-zinc-600 ml-2">kael.quest/dashboard</span>
+                <div className="flex-1 mx-4 bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1 text-xs text-zinc-600">
+                  kael.quest/dashboard
+                </div>
               </div>
-              <div className="flex h-64">
-                <div className="w-40 bg-[#111] border-r border-zinc-800 px-3 py-4 shrink-0">
-                  <p className="text-white font-bold text-sm mb-4 px-2">Kael</p>
-                  {['⚡ Inicio', '💬 Conversaciones', '🔔 Recordatorios', '⚙️ Configurar'].map((item, i) => (
-                    <div key={i} className={`flex items-center gap-2 px-2 py-1.5 rounded-lg mb-0.5 text-xs ${i === 0 ? 'bg-[#1c1c2e] text-white' : 'text-zinc-600'}`}>
-                      {item}
+
+              {/* Dashboard layout */}
+              <div className="flex" style={{ minHeight: '320px' }}>
+                {/* Sidebar */}
+                <div className="w-44 bg-[#111] border-r border-zinc-800 px-3 py-5 shrink-0 flex flex-col">
+                  <p className="text-white font-bold text-sm mb-6 px-2 bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">Kael</p>
+                  <p className="px-2 mb-1.5 text-[0.6rem] uppercase tracking-widest text-zinc-700">Principal</p>
+                  {[
+                    { icon: '⚡', label: 'Inicio', active: true },
+                    { icon: '💬', label: 'Conversaciones', active: false },
+                    { icon: '🔔', label: 'Recordatorios', active: false },
+                  ].map((item, i) => (
+                    <div key={i} className={`flex items-center gap-2 px-2 py-2 rounded-lg mb-0.5 text-xs transition-colors ${item.active ? 'bg-[#1c1c2e] text-white font-medium' : 'text-zinc-600'}`}>
+                      <span className="text-sm">{item.icon}</span>{item.label}
                     </div>
                   ))}
+                  <p className="px-2 mt-4 mb-1.5 text-[0.6rem] uppercase tracking-widest text-zinc-700">Cuenta</p>
+                  {[
+                    { icon: '⚙️', label: 'Configurar Kael' },
+                    { icon: '👤', label: 'Mi Perfil' },
+                    { icon: '💎', label: 'Mi Plan' },
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-center gap-2 px-2 py-2 rounded-lg mb-0.5 text-xs text-zinc-600">
+                      <span className="text-sm">{item.icon}</span>{item.label}
+                    </div>
+                  ))}
+                  {/* User chip */}
+                  <div className="mt-auto pt-4 border-t border-zinc-800">
+                    <div className="flex items-center gap-2 px-2 py-2 rounded-lg bg-[#161616] border border-zinc-800">
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-xs font-bold text-white shrink-0">E</div>
+                      <div>
+                        <p className="text-xs font-medium text-zinc-200">Elmer</p>
+                        <p className="text-[0.6rem] text-zinc-600">free</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex-1 p-5">
-                  <p className="text-white font-semibold text-sm mb-3">Hola, Usuario 👋</p>
-                  <div className="grid grid-cols-3 gap-2 mb-4">
+
+                {/* Main content */}
+                <div className="flex-1 p-6 overflow-hidden">
+                  {/* Header */}
+                  <div className="mb-5">
+                    <h3 className="text-white font-semibold text-base">Buenos días, Elmer 👋</h3>
+                    <p className="text-zinc-600 text-xs">Tu asistente personal te está esperando</p>
+                  </div>
+
+                  {/* Stats row */}
+                  <div className="grid grid-cols-3 gap-3 mb-5">
                     {[
-                      { label: 'conversaciones', value: '12' },
-                      { label: 'recordatorios', value: '3' },
-                      { label: 'días con Kael', value: '7' }
+                      { label: 'Conversaciones', value: '24', icon: '💬', color: 'from-blue-500/10' },
+                      { label: 'Recordatorios', value: '3', icon: '🔔', color: 'from-emerald-500/10' },
+                      { label: 'Días con Kael', value: '12', icon: '⚡', color: 'from-violet-500/10' },
                     ].map((s, i) => (
-                      <div key={i} className="bg-[#111] border border-zinc-800 rounded-lg p-2.5">
-                        <p className="text-[0.6rem] text-zinc-500 mb-1 uppercase tracking-wider">{s.label}</p>
-                        <p className="text-lg font-bold text-white">{s.value}</p>
+                      <div key={i} className={`bg-gradient-to-br ${s.color} to-transparent border border-zinc-800 rounded-xl p-3`}>
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-[0.6rem] text-zinc-500 uppercase tracking-wider">{s.label}</p>
+                          <span className="text-sm">{s.icon}</span>
+                        </div>
+                        <p className="text-xl font-bold text-white">{s.value}</p>
                       </div>
                     ))}
                   </div>
-                  <div className="bg-gradient-to-br from-[#13113a] to-[#111] border border-indigo-500/20 rounded-xl p-3">
-                    <p className="text-xs text-zinc-400 mb-2 font-medium">⚙️ Configurar Kael</p>
-                    <div className="flex gap-1.5">
+
+                  {/* Config Kael */}
+                  <div className="bg-gradient-to-br from-[#13113a] to-[#111] border border-indigo-500/20 rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-xs text-zinc-300 font-medium">⚙️ Personalidad de Kael</p>
+                      <span className="text-[0.6rem] text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-full">Personalizable</span>
+                    </div>
+                    <div className="flex gap-2 mb-3">
                       {['Motivacional', 'Casual', 'Formal'].map((t, i) => (
-                        <span key={i} className={`text-[0.6rem] px-2 py-1 rounded-md ${i === 0 ? 'bg-indigo-900/50 text-indigo-300 border border-indigo-500/50' : 'bg-[#0e0e0e] text-zinc-600 border border-zinc-800'}`}>{t}</span>
+                        <span key={i} className={`text-[0.65rem] px-3 py-1 rounded-lg cursor-default ${i === 0 ? 'bg-indigo-900/60 text-indigo-300 border border-indigo-500/40 font-medium' : 'bg-[#0e0e0e] text-zinc-600 border border-zinc-800'}`}>{t}</span>
                       ))}
+                    </div>
+                    <div className="bg-zinc-900/60 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-600">
+                      Nombre preferido: <span className="text-zinc-400">Elmer</span>
                     </div>
                   </div>
                 </div>
@@ -542,18 +591,39 @@ export default function Home() {
             </div>
           </motion.div>
 
+          {/* Feature highlights */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="grid grid-cols-3 gap-6 mt-10"
+          >
+            {[
+              { icon: '🧠', title: 'Memoria persistente', desc: 'Tu historial completo de conversaciones con Kael.' },
+              { icon: '🎛️', title: 'Personalización total', desc: 'Nombre, tono, idioma e instrucciones especiales.' },
+              { icon: '🔔', title: 'Gestión de recordatorios', desc: 'Crea, pausa y elimina recordatorios desde el panel.' },
+            ].map((f, i) => (
+              <div key={i} className="text-center p-4">
+                <div className="text-2xl mb-3">{f.icon}</div>
+                <p className="text-sm font-medium text-zinc-300 mb-1">{f.title}</p>
+                <p className="text-xs text-zinc-600 leading-relaxed">{f.desc}</p>
+              </div>
+            ))}
+          </motion.div>
+
           <motion.div
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.3 }}
-            className="text-center mt-10"
+            className="text-center mt-8"
           >
             <button
               onClick={() => router.push('/register')}
               className="group relative px-8 py-3.5 bg-white text-black text-sm font-medium rounded-full overflow-hidden transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
-              <span className="relative z-10">Empezar gratis</span>
+              <span className="relative z-10">Empezar gratis — accede a tu dashboard</span>
               <div className="absolute inset-0 bg-zinc-100 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
             </button>
           </motion.div>

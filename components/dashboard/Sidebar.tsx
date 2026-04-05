@@ -16,6 +16,7 @@ const navItems = [
 
 const accountItems = [
   { href: '/dashboard/settings', icon: '⚙️', label: 'Configurar Kael' },
+  { href: '/dashboard/profile', icon: '👤', label: 'Mi Perfil' },
   { href: '/dashboard/plan', icon: '💎', label: 'Mi Plan' },
 ]
 
