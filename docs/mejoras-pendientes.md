@@ -109,16 +109,25 @@
 - Configurar monitors para: `https://kael.quest` y `https://n8n.kael.quest`
 - Alertas a `aroonvegaf@gmail.com` y Telegram
 
-**Importante:** Ya existe riesgo identificado — Fail2Ban puede banear IPs de monitores.  
-Solución: Agregar IP de Uptime Robot a `ignoreip` en fail2ban tras configurar.
+**Importante:** Configurar antes de activar: las IPs de Uptime Robot ya están en fail2ban `ignoreip` ✅
 
 ---
 
-### 10. Corrección permanente: Fail2Ban no banear monitores/servicios legítimos
-**Descripción:** Problema ocurrido el 2026-04-05: Fail2Ban baneó IPs de Cloudflare causando Error 521.
-- Cloudflare ya está en `ignoreip` ✅
-- Uptime Robot: agregar IPs cuando se configure
-- Revisar si Resend/email services requieren whitelist
+### 10. ✅ RESUELTO — Fail2Ban / Cloudflare / monitores legítimos
+**Problema ocurrido:** 2026-04-05: Fail2Ban baneó IPs de Cloudflare causando Error 521.
+
+**Causa raíz:** Al estar detrás de Cloudflare, todo tráfico (legítimo + ataques) llega con IP de Cloudflare. No se debe agregar Cloudflare a `ignoreip` — eso ciega la detección.
+
+**Solución aplicada:**
+- `CF-Connecting-IP` header configurado en nginx (`/etc/nginx/conf.d/cloudflare-realip.conf`) → nginx ve y loggea la IP real del cliente
+- Fail2Ban detecta IPs reales de atacantes desde los logs
+- 116 IPs de Uptime Robot agregadas a `ignoreip` ✅
+- Resend no hace requests entrantes al servidor → no requiere whitelist ✅
+
+**Regla de seguridad permanente — NUNCA exponer archivos sensibles:**
+- `/.env*`, `/.git/`, `/package.json`, `/.htaccess`, etc. → nginx devuelve `444` (sin respuesta)
+- Doble protección: `map $blocked_uri` + `location` explícito en nginx
+- Verificado: `/.env.production` → `000` (conexión cerrada) ✅
 
 ---
 
