@@ -130,12 +130,32 @@ export default function KaelConfigForm({ isPro = false }: { isPro?: boolean }) {
 
         <div>
           <label className="block text-[0.7rem] uppercase tracking-wider text-zinc-500 mb-1.5 font-medium">
-            Tu Telegram Chat ID <span className="text-zinc-700 normal-case">(para ver historial)</span>
+            Conectar Telegram
           </label>
+          {!prefs.telegramChatId ? (
+            <div className="rounded-lg border border-indigo-500/20 bg-indigo-500/5 p-3 mb-2 space-y-2">
+              <p className="text-xs text-zinc-400 font-medium">Para vincular tu cuenta sigue estos pasos:</p>
+              <ol className="space-y-1.5">
+                {[
+                  <>Abre Telegram y busca <span className="text-indigo-400 font-semibold">@userinfobot</span></>,
+                  <>Envía cualquier mensaje y copia el número que aparece en <span className="text-zinc-300">Id:</span></>,
+                  'Pégalo aquí abajo y guarda'
+                ].map((step, i) => (
+                  <li key={i} className="flex items-start gap-2 text-xs text-zinc-500">
+                    <span className="w-4 h-4 rounded-full bg-indigo-900/60 text-indigo-300 flex items-center justify-center shrink-0 text-[0.6rem] font-bold mt-0.5">{i + 1}</span>
+                    <span>{step}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          ) : (
+            <p className="text-xs text-emerald-500 mb-1.5">✓ Telegram vinculado — ID: {prefs.telegramChatId}</p>
+          )}
           <input
             value={prefs.telegramChatId}
-            onChange={e => setPrefs(p => ({ ...p, telegramChatId: e.target.value }))}
-            placeholder="Ej: 826656822 — envía /start a @userinfobot"
+            onChange={e => setPrefs(p => ({ ...p, telegramChatId: e.target.value.replace(/\D/g, '') }))}
+            placeholder="Ej: 826656822"
+            inputMode="numeric"
             className="w-full bg-[#0e0e0e] border border-[#282828] rounded-lg px-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-indigo-500 transition-colors"
           />
         </div>

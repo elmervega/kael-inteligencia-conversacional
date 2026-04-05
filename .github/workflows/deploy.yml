@@ -1,0 +1,45 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            cd /var/www/kael-web
+
+            echo "→ Pulling latest code"
+            git pull origin main
+
+            echo "→ Running migrations"
+            sudo -u www-data npx prisma migrate deploy
+
+            echo "→ Generating Prisma client"
+            sudo -u www-data npx prisma generate
+
+            echo "→ Building"
+            sudo -u www-data npm run build
+
+            echo "→ Restarting service"
+            systemctl restart kael-web
+
+            echo "→ Health check"
+            sleep 3
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/)
+            if [ "$STATUS" != "200" ] && [ "$STATUS" != "301" ] && [ "$STATUS" != "307" ]; then
+              echo "Health check FAILED: HTTP $STATUS"
+              exit 1
+            fi
+            echo "Deploy OK — HTTP $STATUS"
