@@ -1,8 +1,12 @@
-import NextAuth from 'next-auth'
+import NextAuth, { CredentialsSignin } from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import { prisma } from './prisma'
 import bcrypt from 'bcryptjs'
 import { authConfig } from '../auth.config'
+
+class EmailNotVerifiedError extends CredentialsSignin {
+  code = 'email_not_verified' as const
+}
 
 export const {
   handlers,
@@ -33,6 +37,10 @@ export const {
         )
 
         if (!passwordMatch) return null
+
+        if (!user.emailVerified) {
+          throw new EmailNotVerifiedError()
+        }
 
         return {
           id: user.id,

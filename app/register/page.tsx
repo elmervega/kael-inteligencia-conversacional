@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 
@@ -12,11 +11,11 @@ const API_ERROR_MESSAGES: Record<string, string> = {
 }
 
 export default function RegisterPage() {
-  const router = useRouter()
   const [form, setForm] = useState({ name: '', email: '', password: '' })
   const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string; general?: string }>({})
   const [loading, setLoading] = useState(false)
   const [isEmailTaken, setIsEmailTaken] = useState(false)
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null)
 
   const validate = () => {
     const newErrors: typeof errors = {}
@@ -63,13 +62,49 @@ export default function RegisterPage() {
       return
     }
 
-    router.push('/login?registered=1')
+    setRegisteredEmail(form.email)
   }
 
   const fieldClass = (field: keyof typeof errors) =>
     `w-full bg-zinc-900 border rounded-lg px-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none transition ${
       errors[field] ? 'border-red-500/60 focus:border-red-500' : 'border-zinc-800 focus:border-zinc-600'
     }`
+
+  if (registeredEmail) {
+    return (
+      <main className="min-h-screen bg-[#050505] text-white flex items-center justify-center px-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="w-full max-w-md text-center"
+        >
+          <div className="mb-8">
+            <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">
+              Kael
+            </Link>
+          </div>
+          <div className="border border-zinc-800 rounded-2xl p-8 bg-zinc-900/20 backdrop-blur-sm space-y-4">
+            <div className="w-12 h-12 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center mx-auto text-xl">
+              ✉
+            </div>
+            <h1 className="text-xl font-bold text-white">Revisa tu correo</h1>
+            <p className="text-zinc-400 text-sm">
+              Enviamos un enlace de confirmación a <span className="text-zinc-200">{registeredEmail}</span>.
+              Haz clic en él para activar tu cuenta.
+            </p>
+            <p className="text-zinc-600 text-xs">El enlace expira en 24 horas.</p>
+            <Link
+              href="/login"
+              className="block w-full py-3 bg-white text-black rounded-full text-sm font-medium hover:bg-zinc-100 transition mt-2"
+            >
+              Ir al inicio de sesión
+            </Link>
+          </div>
+        </motion.div>
+      </main>
+    )
+  }
 
   return (
     <main className="min-h-screen bg-[#050505] text-white flex items-center justify-center px-4">

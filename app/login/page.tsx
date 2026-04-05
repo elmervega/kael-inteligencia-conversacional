@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 
-type ErrorType = 'credentials' | 'rate_limit' | 'server' | null
+type ErrorType = 'credentials' | 'rate_limit' | 'server' | 'email_not_verified' | null
 
 function LoginForm() {
   const router = useRouter()
@@ -20,7 +20,8 @@ function LoginForm() {
   const errorMessages: Record<NonNullable<ErrorType>, string> = {
     credentials: 'Email o contraseña incorrectos. Verifica tus datos.',
     rate_limit: `Demasiados intentos.${retryAfter ? ` Intenta de nuevo en ${Math.ceil(retryAfter / 60)} minuto${retryAfter > 60 ? 's' : ''}.` : ' Intenta más tarde.'}`,
-    server: 'Error del servidor. Intenta de nuevo en unos momentos.'
+    server: 'Error del servidor. Intenta de nuevo en unos momentos.',
+    email_not_verified: 'Debes confirmar tu email antes de iniciar sesión. Revisa tu bandeja de entrada.'
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -39,6 +40,8 @@ function LoginForm() {
         setErrorType('rate_limit')
       } else if (res.status && res.status >= 500) {
         setErrorType('server')
+      } else if (res.error === 'email_not_verified') {
+        setErrorType('email_not_verified')
       } else {
         setErrorType('credentials')
       }
@@ -102,13 +105,13 @@ function LoginForm() {
             initial={{ opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
             className={`flex items-start gap-2 p-3 rounded-lg text-sm ${
-              errorType === 'rate_limit'
+              errorType === 'rate_limit' || errorType === 'email_not_verified'
                 ? 'bg-amber-500/10 border border-amber-500/30 text-amber-400'
                 : 'bg-red-500/10 border border-red-500/30 text-red-400'
             }`}
           >
             <span className="mt-0.5 shrink-0">
-              {errorType === 'rate_limit' ? '⏳' : '⚠️'}
+              {errorType === 'rate_limit' ? '⏳' : errorType === 'email_not_verified' ? '✉' : '⚠️'}
             </span>
             {errorMessages[errorType]}
           </motion.div>
