@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, Suspense } from 'react'
-import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
@@ -31,27 +30,63 @@ function LoginForm() {
     setLoading(true)
     setErrorType(null)
 
-    const res = await signIn('credentials', {
-      email: form.email,
-      password: form.password,
-      redirect: false
-    })
+    try {
+      // Step 1: Fetch CSRF token — this ALSO sets the CSRF cookie server-side
+      const csrfRes = await fetch('/api/auth/csrf')
+      const { csrfToken } = await csrfRes.json()
 
-    if (res?.error) {
+      // Step 2: POST credentials with the CSRF token matching the cookie
+      const res = await fetch('/api/auth/callback/credentials', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-Auth-Return-Redirect': '1',
+        },
+        body: new URLSearchParams({
+          csrfToken,
+          email: form.email,
+          password: form.password,
+          callbackUrl: '/dashboard',
+          json: 'true',
+        }),
+      })
+
       if (res.status === 429) {
+        const data = await res.json().catch(() => ({}))
+        setRetryAfter(data.retryAfter ?? null)
         setErrorType('rate_limit')
-      } else if (res.status && res.status >= 500) {
-        setErrorType('server')
-      } else if (res.error === 'email_not_verified') {
-        setErrorType('email_not_verified')
-      } else {
-        setErrorType('credentials')
+        setLoading(false)
+        return
       }
-      setLoading(false)
-      return
-    }
 
-    router.push('/dashboard')
+      if (res.status >= 500) {
+        setErrorType('server')
+        setLoading(false)
+        return
+      }
+
+      // NextAuth v5 with json:true returns { url: '...' }
+      const data = await res.json().catch(() => ({}))
+      const redirectUrl: string = data.url ?? ''
+
+      if (redirectUrl.includes('error=')) {
+        const errorParam = new URL(redirectUrl, window.location.origin).searchParams.get('error') ?? ''
+        if (errorParam === 'email_not_verified') {
+          setErrorType('email_not_verified')
+        } else {
+          setErrorType('credentials')
+        }
+        setLoading(false)
+        return
+      }
+
+      // Success — navigate to dashboard
+      router.push('/dashboard')
+      router.refresh()
+    } catch {
+      setErrorType('server')
+      setLoading(false)
+    }
   }
 
   const resendVerification = async () => {
