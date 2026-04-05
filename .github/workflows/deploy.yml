@@ -18,6 +18,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             set -eo pipefail
+            umask 0022
             cd /var/www/kael-web
 
             echo "→ [1/7] Pulling latest code"
@@ -31,6 +32,7 @@ jobs:
 
             echo "→ [4/7] Generating Prisma client"
             npx prisma generate 2>&1 | tail -3
+            find node_modules/.prisma -name "*.node" -exec chmod o+rx {} \; 2>/dev/null || true
 
             echo "→ [5/7] Building"
             npm run build 2>&1 | tail -10
