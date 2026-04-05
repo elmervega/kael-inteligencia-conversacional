@@ -16,6 +16,8 @@ function LoginForm() {
   const [errorType, setErrorType] = useState<ErrorType>(null)
   const [retryAfter, setRetryAfter] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendDone, setResendDone] = useState(false)
 
   const errorMessages: Record<NonNullable<ErrorType>, string> = {
     credentials: 'Email o contraseña incorrectos. Verifica tus datos.',
@@ -50,6 +52,17 @@ function LoginForm() {
     }
 
     router.push('/dashboard')
+  }
+
+  const resendVerification = async () => {
+    setResendLoading(true)
+    await fetch('/api/resend-verification', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: form.email })
+    })
+    setResendLoading(false)
+    setResendDone(true)
   }
 
   const hasError = () => errorType === 'credentials'
@@ -104,16 +117,33 @@ function LoginForm() {
           <motion.div
             initial={{ opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`flex items-start gap-2 p-3 rounded-lg text-sm ${
+            className={`p-3 rounded-lg text-sm ${
               errorType === 'rate_limit' || errorType === 'email_not_verified'
                 ? 'bg-amber-500/10 border border-amber-500/30 text-amber-400'
                 : 'bg-red-500/10 border border-red-500/30 text-red-400'
             }`}
           >
-            <span className="mt-0.5 shrink-0">
-              {errorType === 'rate_limit' ? '⏳' : errorType === 'email_not_verified' ? '✉' : '⚠️'}
-            </span>
-            {errorMessages[errorType]}
+            <div className="flex items-start gap-2">
+              <span className="mt-0.5 shrink-0">
+                {errorType === 'rate_limit' ? '⏳' : errorType === 'email_not_verified' ? '✉' : '⚠️'}
+              </span>
+              {errorMessages[errorType]}
+            </div>
+            {errorType === 'email_not_verified' && (
+              <div className="mt-2 ml-5">
+                {resendDone ? (
+                  <span className="text-emerald-400 text-xs">✓ Enviado. Revisa tu bandeja de entrada.</span>
+                ) : (
+                  <button
+                    onClick={resendVerification}
+                    disabled={resendLoading}
+                    className="text-xs text-amber-300 underline hover:text-amber-200 transition disabled:opacity-50"
+                  >
+                    {resendLoading ? 'Enviando...' : 'Reenviar enlace de verificación'}
+                  </button>
+                )}
+              </div>
+            )}
           </motion.div>
         )}
 
