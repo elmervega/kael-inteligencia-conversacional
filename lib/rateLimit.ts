@@ -24,6 +24,9 @@ export const rateLimitConfig = {
 }
 
 export function getClientIp(request: NextRequest): string {
+  // CF-Connecting-IP is the real client IP behind Cloudflare
+  const cfIp = request.headers.get('cf-connecting-ip')
+  if (cfIp) return cfIp.trim()
   const forwarded = request.headers.get('x-forwarded-for')
   if (forwarded) return forwarded.split(',')[0].trim()
   const realIp = request.headers.get('x-real-ip')
