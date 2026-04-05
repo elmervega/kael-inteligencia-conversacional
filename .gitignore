@@ -108,3 +108,11 @@ next-env.d.ts
 ~*
 #*#
 .#*
+
+# ============================================
+# DOCUMENTACION DE INFRAESTRUCTURA (SENSIBLE)
+# Contienen IPs, configuraciones y detalles del servidor
+# ============================================
+*.md
+docs/
+.superpowers/
