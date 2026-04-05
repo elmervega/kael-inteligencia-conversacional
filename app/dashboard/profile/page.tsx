@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
+import { signOut } from 'next-auth/react'
 
 type Field = 'name' | 'email' | 'password'
 type Status = { type: 'success' | 'error'; message: string } | null
@@ -52,6 +53,12 @@ export default function ProfilePage() {
   const [pwd, setPwd] = useState({ current: '', new: '', confirm: '' })
   const [pwdStatus, setPwdStatus] = useState<Status>(null)
   const [pwdLoading, setPwdLoading] = useState(false)
+
+  // Delete account
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleteEmail, setDeleteEmail] = useState('')
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/profile').then(r => r.json()).then(d => {
@@ -106,6 +113,24 @@ export default function ProfilePage() {
       setPwd({ current: '', new: '', confirm: '' })
     } else {
       setPwdStatus({ type: 'error', message: d.message ?? d.error ?? 'Error al cambiar contraseña.' })
+    }
+  }
+
+  const deleteAccount = async () => {
+    setDeleteLoading(true)
+    setDeleteError(null)
+    const res = await fetch('/api/profile', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: deleteEmail })
+    })
+    if (res.ok) {
+      await signOut({ redirect: false })
+      router.push('/?deleted=1')
+    } else {
+      const d = await res.json()
+      setDeleteError(d.error ?? 'Error al eliminar la cuenta.')
+      setDeleteLoading(false)
     }
   }
 
@@ -224,7 +249,72 @@ export default function ProfilePage() {
             </div>
           </div>
         </Section>
+
+        {/* Zona de peligro */}
+        <div className="border border-red-900/40 rounded-2xl p-6 bg-red-950/10">
+          <h2 className="text-sm font-semibold text-red-400 uppercase tracking-wider mb-1">Zona de peligro</h2>
+          <p className="text-zinc-500 text-xs mb-4">Una vez que elimines tu cuenta no hay vuelta atrás. Se borrarán todos tus datos permanentemente.</p>
+          <button
+            onClick={() => { setDeleteOpen(true); setDeleteEmail(''); setDeleteError(null) }}
+            className="px-5 py-2.5 bg-red-950/60 text-red-400 border border-red-900/50 rounded-full text-sm font-medium hover:bg-red-900/40 hover:text-red-300 transition"
+          >
+            Eliminar mi cuenta
+          </button>
+        </div>
       </div>
+
+      {/* Modal de confirmación */}
+      <AnimatePresence>
+        {deleteOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/70 backdrop-blur-sm"
+            onClick={e => { if (e.target === e.currentTarget) setDeleteOpen(false) }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 8 }}
+              transition={{ duration: 0.2 }}
+              className="w-full max-w-md bg-[#0e0e0e] border border-red-900/40 rounded-2xl p-6"
+            >
+              <h3 className="text-lg font-bold text-white mb-1">¿Eliminar cuenta?</h3>
+              <p className="text-zinc-500 text-sm mb-5">
+                Esta acción es permanente e irreversible. Para confirmar, escribe tu email: <span className="text-zinc-300 font-medium">{profile.email}</span>
+              </p>
+              <input
+                type="email"
+                value={deleteEmail}
+                onChange={e => { setDeleteEmail(e.target.value); setDeleteError(null) }}
+                placeholder={profile.email ?? 'tu@email.com'}
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-red-800 transition mb-3"
+                autoFocus
+              />
+              {deleteError && (
+                <p className="text-red-400 text-xs mb-3">{deleteError}</p>
+              )}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setDeleteOpen(false)}
+                  disabled={deleteLoading}
+                  className="flex-1 py-2.5 border border-zinc-800 text-zinc-400 rounded-full text-sm hover:border-zinc-600 hover:text-zinc-300 transition disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={deleteAccount}
+                  disabled={deleteLoading || deleteEmail.toLowerCase() !== profile.email?.toLowerCase()}
+                  className="flex-1 py-2.5 bg-red-950/80 text-red-400 border border-red-900/60 rounded-full text-sm font-medium hover:bg-red-900/50 transition disabled:opacity-40"
+                >
+                  {deleteLoading ? 'Eliminando...' : 'Sí, eliminar'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

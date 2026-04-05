@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
+import { Resend } from 'resend'
 
 const schema = z.object({
   name: z.string().min(2).max(80).optional(),
@@ -65,5 +66,42 @@ export async function PUT(req: NextRequest) {
   }
 
   await prisma.user.update({ where: { id: session.user.id }, data: updateData })
+  return NextResponse.json({ ok: true })
+}
+
+export async function DELETE(req: NextRequest) {
+  const session = await auth()
+  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  let body: unknown
+  try { body = await req.json() } catch { return NextResponse.json({ error: 'Invalid request' }, { status: 400 }) }
+
+  const { email } = body as { email?: string }
+  if (!email || email.toLowerCase() !== session.user.email?.toLowerCase()) {
+    return NextResponse.json({ error: 'El email no coincide.' }, { status: 400 })
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { email: true, name: true } })
+  if (!user) return NextResponse.json({ error: 'Usuario no encontrado.' }, { status: 404 })
+
+  await prisma.user.delete({ where: { id: session.user.id } })
+
+  // Notify via email (fire and forget)
+  try {
+    const resend = new Resend(process.env.RESEND_API_KEY)
+    await resend.emails.send({
+      from: 'Kael <noreply@kael.quest>',
+      to: user.email!,
+      subject: 'Tu cuenta en Kael ha sido eliminada',
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #050505; color: #fff; padding: 40px 20px; max-width: 480px; margin: 0 auto; border-radius: 16px;">
+          <h1 style="font-size: 22px; font-weight: 700; margin-bottom: 8px;">Cuenta eliminada</h1>
+          <p style="color: #a1a1aa; margin-bottom: 16px;">Hola${user.name ? ` ${user.name}` : ''}, tu cuenta y todos tus datos han sido eliminados permanentemente de Kael.</p>
+          <p style="color: #52525b; font-size: 13px;">Si no realizaste esta acción, contáctanos respondiendo este correo.</p>
+        </div>
+      `
+    })
+  } catch { /* no bloquear si falla el email */ }
+
   return NextResponse.json({ ok: true })
 }
