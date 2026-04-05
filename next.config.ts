@@ -1,5 +1,4 @@
 import type { NextConfig } from "next";
-import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   eslint: {
@@ -56,12 +55,22 @@ const nextConfig: NextConfig = {
   }
 };
 
-export default withSentryConfig(nextConfig, {
-  org: process.env.SENTRY_ORG,
-  project: process.env.SENTRY_PROJECT,
-  silent: !process.env.CI,
-  widenClientFileUpload: true,
-  hideSourceMaps: true,
-  disableLogger: true,
-  automaticVercelMonitors: false,
-});
+// Only wrap with Sentry build integration if auth token is available.
+// The Sentry runtime SDK (DSN in sentry.*.config.ts) works regardless.
+async function buildConfig() {
+  if (process.env.SENTRY_AUTH_TOKEN) {
+    const { withSentryConfig } = await import("@sentry/nextjs");
+    return withSentryConfig(nextConfig, {
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      silent: true,
+      widenClientFileUpload: true,
+      hideSourceMaps: true,
+      disableLogger: true,
+      automaticVercelMonitors: false,
+    });
+  }
+  return nextConfig;
+}
+
+export default buildConfig();

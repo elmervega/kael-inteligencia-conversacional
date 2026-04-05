@@ -17,7 +17,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            set -e
+            set -eo pipefail
             cd /var/www/kael-web
 
             echo "→ [1/7] Pulling latest code"
