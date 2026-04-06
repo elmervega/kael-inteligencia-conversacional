@@ -114,6 +114,12 @@ export default function RegisterPage() {
         transition={{ duration: 0.5 }}
         className="w-full max-w-md"
       >
+        <div className="mb-6">
+          <Link href="/" className="inline-flex items-center gap-2 text-zinc-500 hover:text-white transition text-sm">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            Volver al inicio
+          </Link>
+        </div>
         <div className="text-center mb-8">
           <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">
             Kael
