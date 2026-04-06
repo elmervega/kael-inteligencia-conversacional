@@ -1,14 +1,13 @@
 'use client'
 
 import { useState, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 
 type ErrorType = 'credentials' | 'rate_limit' | 'server' | 'email_not_verified' | null
 
 function LoginForm() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const justRegistered = searchParams.get('registered') === '1'
   const [form, setForm] = useState({ email: '', password: '' })
@@ -80,9 +79,8 @@ function LoginForm() {
         return
       }
 
-      // Success — navigate to dashboard
-      router.push('/dashboard')
-      router.refresh()
+      // Success — full page redirect so middleware reads fresh session cookie
+      window.location.href = '/dashboard'
     } catch {
       setErrorType('server')
       setLoading(false)
