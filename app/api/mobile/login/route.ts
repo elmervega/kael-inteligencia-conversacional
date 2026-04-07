@@ -7,43 +7,61 @@ export async function POST(req: Request) {
   try {
     const { email, password } = await req.json();
 
-    // 1. Buscar al usuario
+    if (!email || !password) {
+      return NextResponse.json(
+        { error: "Email y contraseña requeridos" },
+        { status: 400 }
+      );
+    }
+
+    // 1. Buscar usuario
     const user = await prisma.user.findUnique({
       where: { email },
     });
 
-    if (!user || !user.password_hash) {
-      return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+    if (!user || !user.password) {
+      return NextResponse.json(
+        { error: "Credenciales inválidas" },
+        { status: 401 }
+      );
     }
 
     // 2. Verificar contraseña
-    const isValid = await bcrypt.compare(password, user.password_hash);
+    const isValid = await bcrypt.compare(password, user.password);
     if (!isValid) {
-      return NextResponse.json({ error: "Contraseña incorrecta" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Credenciales inválidas" },
+        { status: 401 }
+      );
     }
 
-    // 3. Crear Token para la App (JWT)
+    // 3. Crear JWT token (30 días)
     const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET!);
     const token = await new SignJWT({
       userId: user.id,
       email: user.email,
-      name: user.name
+      name: user.name,
     })
       .setProtectedHeader({ alg: 'HS256' })
       .setExpirationTime('30d')
       .sign(secret);
 
-    // 4. Devolver datos a FlutterFlow
+    // 4. Retornar token y datos del usuario
     return NextResponse.json({
+      success: true,
       token,
       user: {
         id: user.id,
         name: user.name,
-        email: user.email
-      }
+        email: user.email,
+        plan: user.plan,
+      },
     });
-
   } catch (error) {
-    return NextResponse.json({ error: "Error en el servidor" }, { status: 500 });
+    console.error('Mobile login error:', error);
+    return NextResponse.json(
+      { error: "Error en el servidor" },
+      { status: 500 }
+    );
   }
 }
