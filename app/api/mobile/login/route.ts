@@ -17,6 +17,14 @@ export async function POST(req: Request) {
     // 1. Buscar usuario
     const user = await prisma.user.findUnique({
       where: { email },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        password: true,
+        plan: true,
+      },
     });
 
     if (!user) {
@@ -58,22 +66,22 @@ export async function POST(req: Request) {
     }
 
     // 3. Crear JWT token (30 días)
+    const fullName = [user.firstName, user.lastName]
+      .filter(Boolean)
+      .join(' ')
+      .trim() || user.email;
+
     const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET!);
     const token = await new SignJWT({
       userId: user.id,
       email: user.email,
-      name: user.name,
+      name: fullName,
     })
       .setProtectedHeader({ alg: 'HS256' })
       .setExpirationTime('30d')
       .sign(secret);
 
     // 4. Retornar token y datos del usuario
-    const fullName = [user.firstName, user.lastName]
-      .filter(Boolean)
-      .join(' ')
-      .trim() || user.name || email;
-
     return NextResponse.json({
       success: true,
       token,
