@@ -19,16 +19,38 @@ export async function POST(req: Request) {
       where: { email },
     });
 
-    if (!user || !user.password) {
+    if (!user) {
+      console.log(`Mobile login: user not found for ${email}`);
       return NextResponse.json(
         { error: "Credenciales inválidas" },
         { status: 401 }
       );
     }
 
+    if (!user.password) {
+      console.log(`Mobile login: no password hash for user ${email}`);
+      return NextResponse.json(
+        { error: "Credenciales inválidas" },
+        { status: 401 }
+      );
+    }
+
+    console.log(`Mobile login attempt: ${email}, has password: ${!!user.password}`);
+
     // 2. Verificar contraseña
-    const isValid = await bcrypt.compare(password, user.password);
+    let isValid = false;
+    try {
+      isValid = await bcrypt.compare(password, user.password);
+    } catch (err) {
+      console.error('bcrypt.compare error:', err);
+      return NextResponse.json(
+        { error: "Error al verificar contraseña" },
+        { status: 500 }
+      );
+    }
+
     if (!isValid) {
+      console.log(`Login failed: password mismatch for ${email}`);
       return NextResponse.json(
         { error: "Credenciales inválidas" },
         { status: 401 }
