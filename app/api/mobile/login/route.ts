@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma"; // Tu cliente de Prisma
-import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
+import { prisma } from "@/lib/prisma";
+import bcrypt from "bcryptjs";
+import { SignJWT } from "jose";
 
 export async function POST(req: Request) {
   try {
@@ -23,12 +23,15 @@ export async function POST(req: Request) {
     }
 
     // 3. Crear Token para la App (JWT)
-    // Usa una clave secreta de tu .env
-    const token = jwt.sign(
-      { userId: user.id, email: user.email, name: user.name },
-      process.env.NEXTAUTH_SECRET!,
-      { expiresIn: "30d" }
-    );
+    const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET!);
+    const token = await new SignJWT({
+      userId: user.id,
+      email: user.email,
+      name: user.name
+    })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setExpirationTime('30d')
+      .sign(secret);
 
     // 4. Devolver datos a FlutterFlow
     return NextResponse.json({
