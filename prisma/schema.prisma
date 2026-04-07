@@ -8,17 +8,33 @@ datasource db {
 }
 
 model User {
-  id             String           @id @default(cuid())
-  name           String?
-  email          String           @unique
-  password       String?
-  emailVerified  DateTime?
-  plan           String           @default("free")
-  telegramChatId String?
-  createdAt      DateTime         @default(now())
-  accounts       Account[]
-  sessions       Session[]
-  preferences    UserPreferences?
+  id                    String      @id @db.Uuid
+  firstName             String?     @db.VarChar(32)
+  lastName              String?     @db.VarChar(32)
+  email                 String      @unique @db.VarChar(255)
+  password              String?     @db.VarChar(255)
+  personalizationAnswers Json?
+  createdAt             DateTime    @db.Timestamp(3)
+  updatedAt             DateTime    @db.Timestamp(3)
+  settings              Json?
+  disabled              Boolean     @default(false)
+  mfaEnabled            Boolean     @default(false)
+  mfaSecret             String?
+  mfaRecoveryCodes      String?
+  lastActiveAt          DateTime?   @db.Date
+  roleSlug              String      @default("global:member") @db.VarChar(128)
+
+  // Legacy NextAuth fields
+  name                  String?
+  emailVerified         DateTime?
+  plan                  String      @default("free")
+  telegramChatId        String?
+
+  accounts              Account[]
+  sessions              Session[]
+  preferences           UserPreferences?
+
+  @@map("user")
 }
 
 model Account {

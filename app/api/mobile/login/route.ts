@@ -69,12 +69,19 @@ export async function POST(req: Request) {
       .sign(secret);
 
     // 4. Retornar token y datos del usuario
+    const fullName = [user.firstName, user.lastName]
+      .filter(Boolean)
+      .join(' ')
+      .trim() || user.name || email;
+
     return NextResponse.json({
       success: true,
       token,
       user: {
         id: user.id,
-        name: user.name,
+        name: fullName,
+        firstName: user.firstName,
+        lastName: user.lastName,
         email: user.email,
         plan: user.plan,
       },
