@@ -23,7 +23,6 @@ export async function POST(req: Request) {
         firstName: true,
         lastName: true,
         password: true,
-        plan: true,
       },
     });
 
@@ -91,7 +90,6 @@ export async function POST(req: Request) {
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
-        plan: user.plan,
       },
     });
   } catch (error) {

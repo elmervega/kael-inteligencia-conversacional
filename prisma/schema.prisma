@@ -24,12 +24,6 @@ model User {
   lastActiveAt          DateTime?   @db.Date
   roleSlug              String      @default("global:member") @db.VarChar(128)
 
-  // Legacy NextAuth fields
-  name                  String?
-  emailVerified         DateTime?
-  plan                  String      @default("free")
-  telegramChatId        String?
-
   accounts              Account[]
   sessions              Session[]
   preferences           UserPreferences?
