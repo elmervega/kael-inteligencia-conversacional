@@ -3,6 +3,18 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { SignJWT } from "jose";
 
+// 🌟 1. EL PASE VIP (CORS HEADERS) 🌟
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+// 🌟 2. LA PUERTA DEL EXPLORADOR (OPTIONS) 🌟
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders });
+}
+
 export async function POST(req: Request) {
   try {
     const { email, password } = await req.json();
@@ -10,7 +22,7 @@ export async function POST(req: Request) {
     if (!email || !password) {
       return NextResponse.json(
         { error: "Email y contraseña requeridos" },
-        { status: 400 }
+        { status: 400, headers: corsHeaders } // <-- Pase VIP añadido
       );
     }
 
@@ -30,7 +42,7 @@ export async function POST(req: Request) {
       console.log(`Mobile login: user not found for ${email}`);
       return NextResponse.json(
         { error: "Credenciales inválidas" },
-        { status: 401 }
+        { status: 401, headers: corsHeaders } // <-- Pase VIP añadido
       );
     }
 
@@ -38,7 +50,7 @@ export async function POST(req: Request) {
       console.log(`Mobile login: no password hash for user ${email}`);
       return NextResponse.json(
         { error: "Credenciales inválidas" },
-        { status: 401 }
+        { status: 401, headers: corsHeaders } // <-- Pase VIP añadido
       );
     }
 
@@ -52,7 +64,7 @@ export async function POST(req: Request) {
       console.error('bcrypt.compare error:', err);
       return NextResponse.json(
         { error: "Error al verificar contraseña" },
-        { status: 500 }
+        { status: 500, headers: corsHeaders } // <-- Pase VIP añadido
       );
     }
 
@@ -60,7 +72,7 @@ export async function POST(req: Request) {
       console.log(`Login failed: password mismatch for ${email}`);
       return NextResponse.json(
         { error: "Credenciales inválidas" },
-        { status: 401 }
+        { status: 401, headers: corsHeaders } // <-- Pase VIP añadido
       );
     }
 
@@ -80,7 +92,7 @@ export async function POST(req: Request) {
       .setExpirationTime('30d')
       .sign(secret);
 
-    // 4. Retornar token y datos del usuario
+    // 4. Retornar token y datos del usuario (¡Con el pase VIP!)
     return NextResponse.json({
       success: true,
       token,
@@ -91,12 +103,16 @@ export async function POST(req: Request) {
         lastName: user.lastName,
         email: user.email,
       },
+    }, { 
+      status: 200, 
+      headers: corsHeaders // <-- ¡AQUÍ ESTÁ LA MAGIA DEL ÉXITO!
     });
+
   } catch (error) {
     console.error('Mobile login error:', error);
     return NextResponse.json(
       { error: "Error en el servidor" },
-      { status: 500 }
+      { status: 500, headers: corsHeaders } // <-- Pase VIP añadido
     );
   }
 }
