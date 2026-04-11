@@ -8,28 +8,18 @@ datasource db {
 }
 
 model User {
-  id                    String      @id @default(uuid()) @db.Uuid
-  name                  String?     @db.VarChar(255)
-  firstName             String?     @db.VarChar(32)
-  lastName              String?     @db.VarChar(32)
-  email                 String      @unique @db.VarChar(255)
-  password              String?     @db.VarChar(255)
-  personalizationAnswers Json?
-  createdAt             DateTime    @default(now()) @db.Timestamp(3)
-  updatedAt             DateTime    @updatedAt @db.Timestamp(3)
-  settings              Json?
-  disabled              Boolean     @default(false)
-  mfaEnabled            Boolean     @default(false)
-  mfaSecret             String?
-  mfaRecoveryCodes      String?
-  lastActiveAt          DateTime?   @db.Date
-  roleSlug              String      @default("global:member") @db.VarChar(128)
+  id             String    @id @default(cuid())
+  name           String?
+  email          String    @unique
+  password       String?
+  plan           String    @default("free")
+  telegramChatId String?
+  createdAt      DateTime  @default(now())
+  emailVerified  DateTime?
 
-  accounts              Account[]
-  sessions              Session[]
-  preferences           UserPreferences?
-
-  @@map("user")
+  accounts    Account[]
+  sessions    Session[]
+  preferences UserPreferences?
 }
 
 model Account {
@@ -45,7 +35,8 @@ model Account {
   scope             String?
   id_token          String?
   session_state     String?
-  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
@@ -55,7 +46,8 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model VerificationToken {
@@ -66,22 +58,15 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-model KaelMemory {
-  id         Int    @id @default(autoincrement())
-  session_id String @db.VarChar(255)
-  message    Json
+model UserPreferences {
+  id                String @id @default(cuid())
+  userId            String @unique
+  kaelName          String @default("")
+  language          String @default("es")
+  tone              String @default("motivacional")
+  customInstruction String @default("")
 
-  @@map("kael_memory")
-}
-
-model Recordatorio {
-  id         Int       @id @default(autoincrement())
-  chat_id    String?
-  mensaje    String?
-  hora       DateTime? @db.Timestamp(6)
-  completado Boolean?  @default(false)
-
-  @@map("recordatorios")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model PasswordResetToken {
@@ -100,12 +85,20 @@ model EmailVerificationToken {
   createdAt DateTime @default(now())
 }
 
-model UserPreferences {
-  id                String @id @default(cuid())
-  userId            String @unique
-  kaelName          String @default("")
-  language          String @default("es")
-  tone              String @default("motivacional")
-  customInstruction String @default("")
-  user              User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+model KaelMemory {
+  id         Int    @id @default(autoincrement())
+  session_id String @db.VarChar(255)
+  message    Json
+
+  @@map("kael_memory")
+}
+
+model Recordatorio {
+  id         Int       @id @default(autoincrement())
+  chat_id    String?
+  mensaje    String?
+  hora       DateTime? @db.Timestamp(6)
+  completado Boolean?  @default(false)
+
+  @@map("recordatorios")
 }
