@@ -116,95 +116,106 @@ export async function POST(req: Request) {
       );
     }
 
-    // 4️⃣ VERIFICAR API KEY
-    const openAiApiKey = process.env.OPENAI_API_KEY;
-    if (!openAiApiKey) {
-      console.error("OPENAI_API_KEY not configured");
+    // 4️⃣ VERIFICAR ANTHROPIC API KEY
+    const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+    if (!anthropicApiKey) {
+      console.error("ANTHROPIC_API_KEY not configured");
       return NextResponse.json(
         { error: "Servicio no disponible" },
         { status: 503, headers: corsHeaders }
       );
     }
 
-    // 5️⃣ LLAMADA A OPENAI CON TIMEOUT Y VALIDACIÓN
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos de timeout
-
-    let aiResponse;
+    // 5️⃣ LLAMADA A CLAUDE CON TIMEOUT Y VALIDACIÓN
+    let kaelResponse: string;
     try {
-      aiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${openAiApiKey}`,
-        },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: [
-            {
-              role: "system",
-              content: `Eres Kael, un asistente virtual inteligente, amigable y muy útil. Estás hablando con ${userName}. Responde de forma clara y concisa.`,
-            },
-            {
-              role: "user",
-              content: message,
-            },
-          ],
-        }),
-        signal: controller.signal,
-      });
-    } finally {
-      clearTimeout(timeoutId);
-    }
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos de timeout
 
-    // 6️⃣ VALIDAR RESPONSE DE OPENAI
-    if (!aiResponse.ok) {
-      const errorData = await aiResponse.json().catch(() => ({}));
-      console.error(`OpenAI API error: ${aiResponse.status}`, errorData);
+      try {
+        const response = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": anthropicApiKey,
+            "anthropic-version": "2023-06-01",
+          },
+          body: JSON.stringify({
+            model: "claude-3-5-sonnet-20241022",
+            max_tokens: 1024,
+            system: `Eres Kael, un asistente virtual inteligente, amigable y muy útil. Estás hablando con ${userName}. Responde de forma clara y concisa.`,
+            messages: [
+              {
+                role: "user",
+                content: message,
+              },
+            ],
+          }),
+          signal: controller.signal,
+        });
 
-      if (aiResponse.status === 429) {
+        clearTimeout(timeoutId);
+
+        // 6️⃣ VALIDAR RESPONSE DE CLAUDE
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.error(`Anthropic API error: ${response.status}`, errorData);
+
+          if (response.status === 429) {
+            return NextResponse.json(
+              { error: "Claude está sobrecargado. Intenta más tarde." },
+              { status: 503, headers: corsHeaders }
+            );
+          }
+
+          if (response.status === 401) {
+            console.error("Invalid Anthropic API key");
+            return NextResponse.json(
+              { error: "Error de configuración del servicio" },
+              { status: 503, headers: corsHeaders }
+            );
+          }
+
+          return NextResponse.json(
+            { error: "Error al procesar tu mensaje" },
+            { status: 502, headers: corsHeaders }
+          );
+        }
+
+        const aiData = await response.json();
+
+        // 7️⃣ VALIDAR ESTRUCTURA DE RESPONSE
+        if (
+          !aiData.content ||
+          !Array.isArray(aiData.content) ||
+          aiData.content.length === 0 ||
+          !aiData.content[0].text
+        ) {
+          console.error("Unexpected Claude response structure", aiData);
+          return NextResponse.json(
+            { error: "Respuesta inesperada del servicio" },
+            { status: 502, headers: corsHeaders }
+          );
+        }
+
+        kaelResponse = aiData.content[0].text;
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        console.error("Request timeout to Claude");
         return NextResponse.json(
-          { error: "OpenAI sobrecargado. Intenta más tarde." },
-          { status: 503, headers: corsHeaders }
+          { error: "Solicitud tardó demasiado. Intenta de nuevo." },
+          { status: 504, headers: corsHeaders }
         );
       }
-
-      if (aiResponse.status === 401) {
-        console.error("Invalid OpenAI API key");
-        return NextResponse.json(
-          { error: "Error de configuración del servicio" },
-          { status: 503, headers: corsHeaders }
-        );
-      }
-
-      return NextResponse.json(
-        { error: "Error al procesar tu mensaje" },
-        { status: 502, headers: corsHeaders }
-      );
+      throw err;
     }
-
-    const aiData = await aiResponse.json();
-
-    // 7️⃣ VALIDAR ESTRUCTURA DE RESPONSE
-    if (
-      !aiData.choices ||
-      !Array.isArray(aiData.choices) ||
-      aiData.choices.length === 0 ||
-      !aiData.choices[0].message ||
-      !aiData.choices[0].message.content
-    ) {
-      console.error("Unexpected OpenAI response structure", aiData);
-      return NextResponse.json(
-        { error: "Respuesta inesperada del servicio" },
-        { status: 502, headers: corsHeaders }
-      );
-    }
-
-    const kaelResponse = aiData.choices[0].message.content;
     const timestamp = new Date().toISOString();
 
     // 📊 AUDITORÍA - Registrar uso de API
-    console.log(`[API Call] User: ${userId} (${userName}) | Tokens: ${aiData.usage?.total_tokens || "unknown"} | Remaining: ${remainingRequests}`);
+    console.log(`[API Call] User: ${userId} (${userName}) | Model: Claude 3.5 Sonnet | Remaining: ${remainingRequests}`);
 
     // 8️⃣ GUARDAR EN CACHE (1 hora)
     await cacheSet(
