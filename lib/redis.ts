@@ -1,4 +1,4 @@
-import { Redis } from "redis";
+import Redis from "ioredis";
 
 let redis: Redis | null = null;
 
@@ -8,15 +8,25 @@ export function getRedis() {
       host: process.env.REDIS_HOST || "localhost",
       port: parseInt(process.env.REDIS_PORT || "6379"),
       password: process.env.REDIS_PASSWORD,
+      retryStrategy: (times) => {
+        const delay = Math.min(times * 50, 2000);
+        return delay;
+      },
+      maxRetriesPerRequest: 3,
+      enableReadyCheck: false,
+      enableOfflineQueue: true,
     });
 
     redis.on("error", (err) => {
       console.error("Redis connection error:", err);
-      redis = null; // Reset on error
     });
 
     redis.on("connect", () => {
-      console.log("Redis connected");
+      console.log("✅ Redis connected successfully");
+    });
+
+    redis.on("ready", () => {
+      console.log("✅ Redis ready to accept commands");
     });
   }
 
