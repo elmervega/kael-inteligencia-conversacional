@@ -10,6 +10,7 @@ interface SidebarProps {
 
 const navItems = [
   { href: '/dashboard', icon: '⚡', label: 'Inicio', exact: true },
+  { href: '/dashboard/chat', icon: '🤖', label: 'Chat con Kael' },
   { href: '/dashboard/conversations', icon: '💬', label: 'Conversaciones' },
   { href: '/dashboard/reminders', icon: '🔔', label: 'Recordatorios' },
   { href: '/dashboard/writing-skills', icon: '✍️', label: 'Writing Skills' },
