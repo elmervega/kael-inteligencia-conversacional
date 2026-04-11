@@ -142,8 +142,11 @@ export async function POST(req: Request) {
           body: JSON.stringify({
             model: "gpt-4o-mini",
             max_tokens: 1024,
-            system: `Eres Kael, un asistente virtual inteligente, amigable y muy útil. Estás hablando con ${userName}. Responde de forma clara y concisa.`,
             messages: [
+              {
+                role: "system",
+                content: `Eres Kael, un asistente virtual inteligente, amigable y muy útil. Estás hablando con ${userName}. Responde de forma clara y concisa.`,
+              },
               {
                 role: "user",
                 content: message,
