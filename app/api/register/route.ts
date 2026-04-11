@@ -34,7 +34,7 @@ async function registerHandler(req: NextRequest) {
     const hashedPassword = await bcrypt.hash(password, 12)
 
     await prisma.user.create({
-      data: { name, email, password: hashedPassword, plan: 'free' }
+      data: { name, email, password: hashedPassword }
     })
 
     // Create verification token (24h expiry)
