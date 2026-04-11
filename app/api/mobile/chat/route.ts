@@ -141,7 +141,7 @@ export async function POST(req: Request) {
             "anthropic-version": "2023-06-01",
           },
           body: JSON.stringify({
-            model: "claude-opus-4-1-20250805",
+            model: "claude-3-5-haiku",
             max_tokens: 1024,
             system: `Eres Kael, un asistente virtual inteligente, amigable y muy útil. Estás hablando con ${userName}. Responde de forma clara y concisa.`,
             messages: [
