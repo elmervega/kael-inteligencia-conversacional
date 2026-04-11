@@ -116,32 +116,31 @@ export async function POST(req: Request) {
       );
     }
 
-    // 4️⃣ VERIFICAR ANTHROPIC API KEY
-    const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
-    if (!anthropicApiKey) {
-      console.error("ANTHROPIC_API_KEY not configured");
+    // 4️⃣ VERIFICAR OPENAI API KEY
+    const openaiApiKey = process.env.OPENAI_API_KEY;
+    if (!openaiApiKey) {
+      console.error("OPENAI_API_KEY not configured");
       return NextResponse.json(
         { error: "Servicio no disponible" },
         { status: 503, headers: corsHeaders }
       );
     }
 
-    // 5️⃣ LLAMADA A CLAUDE CON TIMEOUT Y VALIDACIÓN
+    // 5️⃣ LLAMADA A OPENAI CON TIMEOUT Y VALIDACIÓN
     let kaelResponse: string;
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos de timeout
 
       try {
-        const response = await fetch("https://api.anthropic.com/v1/messages", {
+        const response = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "x-api-key": anthropicApiKey,
-            "anthropic-version": "2023-06-01",
+            "Authorization": `Bearer ${openaiApiKey}`,
           },
           body: JSON.stringify({
-            model: "claude-3-5-sonnet-20241022",
+            model: "gpt-4o-mini",
             max_tokens: 1024,
             system: `Eres Kael, un asistente virtual inteligente, amigable y muy útil. Estás hablando con ${userName}. Responde de forma clara y concisa.`,
             messages: [
@@ -156,20 +155,20 @@ export async function POST(req: Request) {
 
         clearTimeout(timeoutId);
 
-        // 6️⃣ VALIDAR RESPONSE DE CLAUDE
+        // 6️⃣ VALIDAR RESPONSE DE OPENAI
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          console.error(`Anthropic API error: ${response.status}`, errorData);
+          console.error(`OpenAI API error: ${response.status}`, errorData);
 
           if (response.status === 429) {
             return NextResponse.json(
-              { error: "Claude está sobrecargado. Intenta más tarde." },
+              { error: "OpenAI está sobrecargado. Intenta más tarde." },
               { status: 503, headers: corsHeaders }
             );
           }
 
           if (response.status === 401) {
-            console.error("Invalid Anthropic API key");
+            console.error("Invalid OpenAI API key");
             return NextResponse.json(
               { error: "Error de configuración del servicio" },
               { status: 503, headers: corsHeaders }
@@ -186,19 +185,20 @@ export async function POST(req: Request) {
 
         // 7️⃣ VALIDAR ESTRUCTURA DE RESPONSE
         if (
-          !aiData.content ||
-          !Array.isArray(aiData.content) ||
-          aiData.content.length === 0 ||
-          !aiData.content[0].text
+          !aiData.choices ||
+          !Array.isArray(aiData.choices) ||
+          aiData.choices.length === 0 ||
+          !aiData.choices[0].message ||
+          !aiData.choices[0].message.content
         ) {
-          console.error("Unexpected Claude response structure", aiData);
+          console.error("Unexpected OpenAI response structure", aiData);
           return NextResponse.json(
             { error: "Respuesta inesperada del servicio" },
             { status: 502, headers: corsHeaders }
           );
         }
 
-        kaelResponse = aiData.content[0].text;
+        kaelResponse = aiData.choices[0].message.content;
       } finally {
         clearTimeout(timeoutId);
       }
@@ -215,7 +215,7 @@ export async function POST(req: Request) {
     const timestamp = new Date().toISOString();
 
     // 📊 AUDITORÍA - Registrar uso de API
-    console.log(`[API Call] User: ${userId} (${userName}) | Model: Claude 3.5 Sonnet | Remaining: ${remainingRequests}`);
+    console.log(`[API Call] User: ${userId} (${userName}) | Model: GPT-4o-mini | Remaining: ${remainingRequests}`);
 
     // 8️⃣ GUARDAR EN CACHE (1 hora)
     await cacheSet(
