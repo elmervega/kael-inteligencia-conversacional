@@ -10,7 +10,7 @@ const corsHeaders = {
 
 // 🔒 2. RATE LIMITING POR USUARIO (En memoria - para producción usar Redis)
 const userRequestCount = new Map<string, { count: number; resetTime: number }>();
-const RATE_LIMIT = 5; // máximo 5 solicitudes
+const RATE_LIMIT = 10000; // TEST MODE: 10000 solicitudes (effectively unlimited for testing)
 const RATE_WINDOW = 3600000; // por hora (3600000 ms)
 
 function checkRateLimit(userId: string): { allowed: boolean; remainingRequests: number } {
