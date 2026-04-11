@@ -141,7 +141,7 @@ export async function POST(req: Request) {
             "anthropic-version": "2023-06-01",
           },
           body: JSON.stringify({
-            model: "claude-opus-4-1",
+            model: "claude-3-haiku-20240307",
             max_tokens: 1024,
             system: `Eres Kael, un asistente virtual inteligente, amigable y muy útil. Estás hablando con ${userName}. Responde de forma clara y concisa.`,
             messages: [
@@ -215,7 +215,7 @@ export async function POST(req: Request) {
     const timestamp = new Date().toISOString();
 
     // 📊 AUDITORÍA - Registrar uso de API
-    console.log(`[API Call] User: ${userId} (${userName}) | Model: Claude Opus 4.1 | Remaining: ${remainingRequests}`);
+    console.log(`[API Call] User: ${userId} (${userName}) | Model: Claude 3 Haiku | Remaining: ${remainingRequests}`);
 
     // 8️⃣ GUARDAR EN CACHE (1 hora)
     await cacheSet(
