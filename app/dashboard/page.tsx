@@ -64,7 +64,10 @@ async function getActiveReminders(telegramChatId: string | null) {
 
 export default async function DashboardPage() {
   const session = await auth()
-  if (!session?.user?.id) redirect('/login')
+  if (!session?.user?.id) {
+    console.error('[dashboard/page] session.user.id missing — session:', JSON.stringify({ user: session?.user }))
+    redirect('/login')
+  }
 
   const isPro = (session.user as any).plan === 'pro'
 

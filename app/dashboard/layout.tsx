@@ -8,7 +8,10 @@ export default async function DashboardLayout({
   children: React.ReactNode
 }) {
   const session = await auth()
-  if (!session?.user) redirect('/login')
+  if (!session?.user) {
+    console.error('[dashboard/layout] auth() returned null — redirecting to /login')
+    redirect('/login')
+  }
 
   return (
     <div className="flex min-h-screen bg-[#080808]">

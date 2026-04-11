@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, Suspense } from 'react'
+import { signIn } from 'next-auth/react'
 import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
@@ -43,58 +44,31 @@ function LoginForm() {
     setErrorType(null)
 
     try {
-      // Step 1: Fetch CSRF token — this ALSO sets the CSRF cookie server-side
-      const csrfRes = await fetch('/api/auth/csrf')
-      const { csrfToken } = await csrfRes.json()
-
-      // Step 2: POST credentials with the CSRF token matching the cookie
-      const res = await fetch('/api/auth/callback/credentials', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'X-Auth-Return-Redirect': '1',
-        },
-        body: new URLSearchParams({
-          csrfToken,
-          email: form.email,
-          password: form.password,
-          callbackUrl: '/dashboard',
-          json: 'true',
-        }),
+      const result = await signIn('credentials', {
+        email: form.email,
+        password: form.password,
+        redirect: false,
       })
 
-      if (res.status === 429) {
-        const data = await res.json().catch(() => ({}))
-        setRetryAfter(data.retryAfter ?? null)
-        setErrorType('rate_limit')
-        setLoading(false)
-        return
-      }
-
-      if (res.status >= 500) {
+      if (!result) {
         setErrorType('server')
         setLoading(false)
         return
       }
 
-      // NextAuth v5 with json:true returns { url: '...' }
-      const data = await res.json().catch(() => ({}))
-      const redirectUrl: string = data.url ?? ''
-
-      if (redirectUrl.includes('error=')) {
-        const parsedUrl = new URL(redirectUrl, window.location.origin)
-        const errorParam = parsedUrl.searchParams.get('error') ?? ''
-        const codeParam = parsedUrl.searchParams.get('code') ?? ''
-        if (errorParam === 'email_not_verified' || codeParam === 'email_not_verified') {
+      if (result.error) {
+        if (result.error === 'email_not_verified') {
           setErrorType('email_not_verified')
-        } else {
+        } else if (result.error === 'CredentialsSignin') {
           setErrorType('credentials')
+        } else {
+          setErrorType('server')
         }
         setLoading(false)
         return
       }
 
-      // Success — full page redirect so middleware reads fresh session cookie
+      // Success — full page redirect so the browser sends the fresh session cookie
       window.location.href = '/dashboard'
     } catch {
       setErrorType('server')
