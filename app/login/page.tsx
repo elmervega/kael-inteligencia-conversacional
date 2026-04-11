@@ -82,8 +82,10 @@ function LoginForm() {
       const redirectUrl: string = data.url ?? ''
 
       if (redirectUrl.includes('error=')) {
-        const errorParam = new URL(redirectUrl, window.location.origin).searchParams.get('error') ?? ''
-        if (errorParam === 'email_not_verified') {
+        const parsedUrl = new URL(redirectUrl, window.location.origin)
+        const errorParam = parsedUrl.searchParams.get('error') ?? ''
+        const codeParam = parsedUrl.searchParams.get('code') ?? ''
+        if (errorParam === 'email_not_verified' || codeParam === 'email_not_verified') {
           setErrorType('email_not_verified')
         } else {
           setErrorType('credentials')
