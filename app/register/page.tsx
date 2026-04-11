@@ -23,8 +23,8 @@ function EyeIcon({ open }: { open: boolean }) {
 }
 
 export default function RegisterPage() {
-  const [form, setForm] = useState({ name: '', email: '', password: '' })
-  const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string; general?: string }>({})
+  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' })
+  const [errors, setErrors] = useState<{ name?: string; email?: string; phone?: string; password?: string; general?: string }>({})
   const [loading, setLoading] = useState(false)
   const [isEmailTaken, setIsEmailTaken] = useState(false)
   const [registeredEmail, setRegisteredEmail] = useState<string | null>(null)
@@ -34,6 +34,7 @@ export default function RegisterPage() {
     const newErrors: typeof errors = {}
     if (form.name.trim().length < 2) newErrors.name = 'Mínimo 2 caracteres'
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) newErrors.email = 'Email inválido'
+    if (form.phone && !/^\+?[\d\s\-\(\)]{7,20}$/.test(form.phone)) newErrors.phone = 'Número de teléfono inválido'
     if (!/^(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])(.{8,})$/.test(form.password)) {
       newErrors.password = 'Mínimo 8 caracteres, una mayúscula, un número y un símbolo'
     }
@@ -173,6 +174,20 @@ export default function RegisterPage() {
                   )}
                 </p>
               )}
+            </div>
+
+            <div>
+              <label className="text-xs text-zinc-500 uppercase tracking-wider mb-2 block">
+                Teléfono <span className="text-zinc-700 normal-case">(opcional — para iniciar sesión por teléfono)</span>
+              </label>
+              <input
+                type="tel"
+                value={form.phone}
+                onChange={e => { setForm({ ...form, phone: e.target.value }); setErrors(p => ({ ...p, phone: undefined })) }}
+                className={fieldClass('phone')}
+                placeholder="+57 300 123 4567"
+              />
+              {errors.phone && <p className="text-red-400 text-xs mt-1">{errors.phone}</p>}
             </div>
 
             <div>

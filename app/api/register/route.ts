@@ -19,9 +19,11 @@ async function registerHandler(req: NextRequest) {
       )
     }
 
-    const { name, email, password } = validationResult.data
+    const { name, email, phone, password } = validationResult.data
 
-    const existingUser = await prisma.user.findUnique({ where: { email } })
+    const existingUser = await prisma.user.findFirst({
+      where: { OR: [{ email }, ...(phone ? [{ phone }] : [])] }
+    })
 
     if (existingUser) {
       logError('register', 'Email already exists', { email })
@@ -34,7 +36,7 @@ async function registerHandler(req: NextRequest) {
     const hashedPassword = await bcrypt.hash(password, 12)
 
     await prisma.user.create({
-      data: { name, email, password: hashedPassword }
+      data: { name, email, phone: phone ?? null, password: hashedPassword }
     })
 
     // Create verification token (24h expiry)

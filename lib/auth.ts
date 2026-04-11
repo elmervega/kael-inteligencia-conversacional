@@ -20,14 +20,20 @@ export const {
   providers: [
     Credentials({
       credentials: {
-        email: { label: 'Email', type: 'email' },
+        email: { label: 'Email o teléfono', type: 'text' },
         password: { label: 'Password', type: 'password' }
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email as string }
+        const identifier = (credentials.email as string).trim()
+        const isPhone = /^[\+\d][\d\s\-\(\)]{5,}$/.test(identifier) && !identifier.includes('@')
+        const normalizedPhone = identifier.replace(/[\s\-\(\)]/g, '')
+
+        const user = await prisma.user.findFirst({
+          where: isPhone
+            ? { phone: normalizedPhone }
+            : { email: identifier.toLowerCase() }
         })
 
         if (!user || !user.password) return null

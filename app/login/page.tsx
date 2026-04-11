@@ -129,15 +129,15 @@ function LoginForm() {
       )}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="text-xs text-zinc-500 uppercase tracking-wider mb-2 block">Email</label>
+          <label className="text-xs text-zinc-500 uppercase tracking-wider mb-2 block">Email o teléfono</label>
           <input
-            type="email"
+            type="text"
             value={form.email}
             onChange={e => { setForm({ ...form, email: e.target.value }); setErrorType(null) }}
             className={`w-full bg-zinc-900 border rounded-lg px-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none transition ${
               hasError() ? 'border-red-500/60 focus:border-red-500' : 'border-zinc-800 focus:border-zinc-600'
             }`}
-            placeholder="tu@email.com"
+            placeholder="tu@email.com o +1234567890"
             required
           />
         </div>

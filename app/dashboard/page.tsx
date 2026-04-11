@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import KaelConfigForm from '@/components/dashboard/KaelConfigForm'
+import DeleteAccountButton from '@/components/dashboard/DeleteAccountButton'
 
 async function getStats(userId: string) {
   const user = await prisma.user.findUnique({
@@ -133,7 +134,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Main grid */}
-      <div className="grid grid-cols-[1.45fr_1fr] gap-5">
+      <div className="grid grid-cols-[1.45fr_1fr] gap-5 mb-5">
         {/* Config form — primary */}
         <KaelConfigForm isPro={isPro} />
 
@@ -202,6 +203,10 @@ export default async function DashboardPage() {
             </Link>
           </div>
         </div>
+      </div>
+      {/* Danger zone */}
+      <div className="max-w-xs">
+        <DeleteAccountButton email={session.user.email!} />
       </div>
     </div>
   )

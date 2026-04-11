@@ -46,9 +46,16 @@ export const nameSchema = z
  * Registration schema
  * Validates the complete registration form
  */
+export const phoneSchema = z
+  .string()
+  .regex(/^\+?[\d\s\-\(\)]{7,20}$/, 'Número de teléfono inválido')
+  .transform(v => v.replace(/[\s\-\(\)]/g, ''))
+  .optional()
+
 export const registerSchema = z.object({
   name: nameSchema,
   email: emailSchema,
+  phone: phoneSchema,
   password: passwordSchema
 })
 
