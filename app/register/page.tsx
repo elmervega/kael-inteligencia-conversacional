@@ -10,12 +10,25 @@ const API_ERROR_MESSAGES: Record<string, string> = {
   'Too many requests. Please try again later.': 'Demasiados intentos. Intenta de nuevo en unos minutos.',
 }
 
+function EyeIcon({ open }: { open: boolean }) {
+  return open ? (
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+    </svg>
+  ) : (
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>
+    </svg>
+  )
+}
+
 export default function RegisterPage() {
   const [form, setForm] = useState({ name: '', email: '', password: '' })
   const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string; general?: string }>({})
   const [loading, setLoading] = useState(false)
   const [isEmailTaken, setIsEmailTaken] = useState(false)
   const [registeredEmail, setRegisteredEmail] = useState<string | null>(null)
+  const [showPassword, setShowPassword] = useState(false)
 
   const validate = () => {
     const newErrors: typeof errors = {}
@@ -164,14 +177,25 @@ export default function RegisterPage() {
 
             <div>
               <label className="text-xs text-zinc-500 uppercase tracking-wider mb-2 block">Contraseña</label>
-              <input
-                type="password"
-                value={form.password}
-                onChange={e => { setForm({ ...form, password: e.target.value }); setErrors(p => ({ ...p, password: undefined })) }}
-                className={fieldClass('password')}
-                placeholder="Mínimo 8 caracteres"
-                required
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={form.password}
+                  onChange={e => { setForm({ ...form, password: e.target.value }); setErrors(p => ({ ...p, password: undefined })) }}
+                  className={`${fieldClass('password')} pr-11`}
+                  placeholder="Mínimo 8 caracteres"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+                  tabIndex={-1}
+                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                >
+                  <EyeIcon open={showPassword} />
+                </button>
+              </div>
               {errors.password && <p className="text-red-400 text-xs mt-1">{errors.password}</p>}
             </div>
 
