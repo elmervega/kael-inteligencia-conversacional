@@ -27,7 +27,7 @@ jobs:
             git reset --hard origin/main
 
             echo "→ [2/7] Installing dependencies"
-            npm ci --omit=dev 2>&1 | tail -5 || npm install 2>&1 | tail -5
+            npm ci 2>&1 | tail -5
 
             echo "→ [3/7] Running DB migrations"
             npx prisma migrate deploy 2>&1
