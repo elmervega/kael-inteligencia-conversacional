@@ -15,8 +15,8 @@ model User {
   email                 String      @unique @db.VarChar(255)
   password              String?     @db.VarChar(255)
   personalizationAnswers Json?
-  createdAt             DateTime    @db.Timestamp(3)
-  updatedAt             DateTime    @db.Timestamp(3)
+  createdAt             DateTime    @default(now()) @db.Timestamp(3)
+  updatedAt             DateTime    @updatedAt @db.Timestamp(3)
   settings              Json?
   disabled              Boolean     @default(false)
   mfaEnabled            Boolean     @default(false)
