@@ -57,9 +57,16 @@ function LoginForm() {
       }
 
       if (result.error) {
-        if (result.error === 'email_not_verified') {
+        // Auth.js v5 puede pasar el código en result.error o en la URL de retorno
+        const returnUrl = result.url ?? ''
+        const isEmailNotVerified =
+          result.error === 'email_not_verified' ||
+          returnUrl.includes('code=email_not_verified') ||
+          returnUrl.includes('error=email_not_verified')
+
+        if (isEmailNotVerified) {
           setErrorType('email_not_verified')
-        } else if (result.error === 'CredentialsSignin') {
+        } else if (result.error === 'CredentialsSignin' || result.error === 'CallbackRouteError') {
           setErrorType('credentials')
         } else {
           setErrorType('server')
