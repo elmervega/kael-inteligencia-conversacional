@@ -91,22 +91,41 @@ export async function GET(req: Request) {
     // 2️⃣ REDIS CHECK
     try {
       const redis = getRedis();
-      const info = await redis.info("stats");
-      const lines = info.split("\r\n");
-      const connected_clients = lines.find((l) => l.includes("connected_clients"));
-      const total_commands_processed = lines.find((l) =>
-        l.includes("total_commands_processed")
-      );
 
-      status.services.redis = {
-        status: "✅ Healthy",
-        description: "Redis está conectado y cacheando",
-        stats: {
-          connected_clients: connected_clients?.split(":")[1] || "0",
-          total_commands: total_commands_processed?.split(":")[1] || "0",
-        },
-      };
+      // Test connection with ping
+      const pingResult = await Promise.race([
+        redis.ping(),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Redis ping timeout")), 3000)
+        )
+      ]);
+
+      if (pingResult === "PONG") {
+        try {
+          const info = await redis.info("stats");
+          const lines = info.split("\r\n");
+          const connected_clients = lines.find((l) => l.includes("connected_clients"));
+          const total_commands_processed = lines.find((l) =>
+            l.includes("total_commands_processed")
+          );
+
+          status.services.redis = {
+            status: "✅ Healthy",
+            description: "Redis está conectado y cacheando",
+            stats: {
+              connected_clients: connected_clients?.split(":")[1] || "0",
+              total_commands: total_commands_processed?.split(":")[1] || "0",
+            },
+          };
+        } catch (infoErr) {
+          status.services.redis = {
+            status: "✅ Healthy",
+            description: "Redis respondiendo pero sin stats",
+          };
+        }
+      }
     } catch (err) {
+      console.warn(`[Redis Health Check] Error: ${err}`);
       status.services.redis = {
         status: "⚠️ Unavailable",
         description: "Redis no está disponible (fallback automático activado)",
