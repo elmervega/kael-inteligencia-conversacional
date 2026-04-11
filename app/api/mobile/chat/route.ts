@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { jwtVerify } from "jose";
+import { cacheGet, cacheSet, getCacheKey } from "@/lib/redis";
 
 // 🌟 1. EL PASE VIP (CORS HEADERS) 🌟
 const corsHeaders = {
@@ -92,7 +93,30 @@ export async function POST(req: Request) {
       );
     }
 
-    // 3️⃣ VERIFICAR API KEY
+    // 3️⃣ VERIFICAR CACHE PRIMERO (⚡ REDUCE COSTO 90%)
+    const cacheKey = getCacheKey(userId, message);
+    const cachedResponse = await cacheGet(cacheKey);
+    if (cachedResponse) {
+      console.log(`[Cache HIT] User: ${userId} | Key: ${cacheKey}`);
+      const cached = JSON.parse(cachedResponse);
+      return NextResponse.json(
+        {
+          success: true,
+          response: cached.response,
+          metadata: {
+            userId,
+            userName,
+            messageReceived: message,
+            timestamp: cached.timestamp,
+            remainingRequests,
+            cached: true,
+          },
+        },
+        { status: 200, headers: corsHeaders }
+      );
+    }
+
+    // 4️⃣ VERIFICAR API KEY
     const openAiApiKey = process.env.OPENAI_API_KEY;
     if (!openAiApiKey) {
       console.error("OPENAI_API_KEY not configured");
@@ -102,7 +126,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // 4️⃣ LLAMADA A OPENAI CON TIMEOUT Y VALIDACIÓN
+    // 5️⃣ LLAMADA A OPENAI CON TIMEOUT Y VALIDACIÓN
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos de timeout
 
@@ -133,7 +157,7 @@ export async function POST(req: Request) {
       clearTimeout(timeoutId);
     }
 
-    // 5️⃣ VALIDAR RESPONSE DE OPENAI
+    // 6️⃣ VALIDAR RESPONSE DE OPENAI
     if (!aiResponse.ok) {
       const errorData = await aiResponse.json().catch(() => ({}));
       console.error(`OpenAI API error: ${aiResponse.status}`, errorData);
@@ -161,7 +185,7 @@ export async function POST(req: Request) {
 
     const aiData = await aiResponse.json();
 
-    // 6️⃣ VALIDAR ESTRUCTURA DE RESPONSE
+    // 7️⃣ VALIDAR ESTRUCTURA DE RESPONSE
     if (
       !aiData.choices ||
       !Array.isArray(aiData.choices) ||
@@ -177,11 +201,20 @@ export async function POST(req: Request) {
     }
 
     const kaelResponse = aiData.choices[0].message.content;
+    const timestamp = new Date().toISOString();
 
     // 📊 AUDITORÍA - Registrar uso de API
     console.log(`[API Call] User: ${userId} (${userName}) | Tokens: ${aiData.usage?.total_tokens || "unknown"} | Remaining: ${remainingRequests}`);
 
-    // 7️⃣ ENVIAR LA RESPUESTA
+    // 8️⃣ GUARDAR EN CACHE (1 hora)
+    await cacheSet(
+      cacheKey,
+      JSON.stringify({ response: kaelResponse, timestamp }),
+      3600
+    );
+    console.log(`[Cache SET] User: ${userId} | Key: ${cacheKey}`);
+
+    // 9️⃣ ENVIAR LA RESPUESTA
     return NextResponse.json(
       {
         success: true,
@@ -190,8 +223,9 @@ export async function POST(req: Request) {
           userId,
           userName,
           messageReceived: message,
-          timestamp: new Date().toISOString(),
+          timestamp,
           remainingRequests,
+          cached: false,
         },
       },
       { status: 200, headers: corsHeaders }
