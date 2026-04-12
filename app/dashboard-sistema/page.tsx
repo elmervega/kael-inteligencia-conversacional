@@ -25,6 +25,21 @@ interface ServiceStatus {
   uptime?: string
 }
 
+interface UsersData {
+  total: number
+  verified: number
+  pendingVerification: number
+  recent: Array<{
+    id: string
+    name: string | null
+    email: string | null
+    phone: string | null
+    emailVerified: string | null
+    createdAt: string
+    plan: string | null
+  }>
+}
+
 type FilterLevel = 'all' | 'error' | 'warning' | 'info'
 
 export default function DashboardSistema() {
@@ -32,6 +47,7 @@ export default function DashboardSistema() {
   const [services, setServices] = useState<ServiceStatus | null>(null)
   const [logs, setLogs] = useState<Log[]>([])
   const [security, setSecurity] = useState<SecurityData | null>(null)
+  const [users, setUsers] = useState<UsersData | null>(null)
   const [logsError, setLogsError] = useState(false)
   const [securityError, setSecurityError] = useState(false)
   const [filter, setFilter] = useState<FilterLevel>('all')
@@ -71,15 +87,24 @@ export default function DashboardSistema() {
     }
   }, [])
 
+  const fetchUsers = useCallback(async () => {
+    try {
+      const res = await fetch('/api/sistema/users')
+      if (res.ok) setUsers(await res.json())
+    } catch {}
+  }, [])
+
   useEffect(() => {
     fetchServices()
     fetchLogs()
     fetchSecurity()
+    fetchUsers()
     const t1 = setInterval(fetchServices, 30000)
     const t2 = setInterval(fetchLogs, 15000)
     const t3 = setInterval(fetchSecurity, 30000)
-    return () => { clearInterval(t1); clearInterval(t2); clearInterval(t3) }
-  }, [fetchServices, fetchLogs, fetchSecurity])
+    const t4 = setInterval(fetchUsers, 60000)
+    return () => { clearInterval(t1); clearInterval(t2); clearInterval(t3); clearInterval(t4) }
+  }, [fetchServices, fetchLogs, fetchSecurity, fetchUsers])
 
   const handleLogout = async () => {
     await fetch('/api/sistema/auth', { method: 'DELETE' })
@@ -119,6 +144,12 @@ export default function DashboardSistema() {
   }
 
   const countOf = (l: FilterLevel) => l === 'all' ? logs.length : logs.filter(x => x.level === l).length
+
+  const formatDate = (iso: string) => {
+    try {
+      return new Date(iso).toLocaleString('es', { dateStyle: 'short', timeStyle: 'short' })
+    } catch { return iso }
+  }
 
   return (
     <div className="min-h-screen bg-[#050505] text-white">
@@ -166,6 +197,67 @@ export default function DashboardSistema() {
             <p className="text-[0.68rem] text-zinc-500 uppercase tracking-wider mb-2">⏱️ Uptime</p>
             <p className="text-xs text-zinc-300 font-mono mt-3">{services?.uptime ?? 'Cargando...'}</p>
           </div>
+        </div>
+
+        {/* Users section */}
+        <div className="bg-zinc-900/30 border border-zinc-800 rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-white">👥 Usuarios Registrados</h2>
+            <span className="text-[0.68rem] text-zinc-600">Refresca cada 60s</span>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3 mb-5">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-center">
+              <p className="text-2xl font-bold text-white">{users?.total ?? '—'}</p>
+              <p className="text-[0.65rem] text-zinc-500 mt-1">Total</p>
+            </div>
+            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-center">
+              <p className="text-2xl font-bold text-green-400">{users?.verified ?? '—'}</p>
+              <p className="text-[0.65rem] text-zinc-500 mt-1">Verificados</p>
+            </div>
+            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-center">
+              <p className={`text-2xl font-bold ${(users?.pendingVerification ?? 0) > 0 ? 'text-yellow-400' : 'text-zinc-400'}`}>
+                {users?.pendingVerification ?? '—'}
+              </p>
+              <p className="text-[0.65rem] text-zinc-500 mt-1">Sin verificar</p>
+            </div>
+          </div>
+
+          {users && users.recent.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-zinc-600 border-b border-zinc-800">
+                    <th className="text-left pb-2 font-medium">Nombre</th>
+                    <th className="text-left pb-2 font-medium">Email / Teléfono</th>
+                    <th className="text-left pb-2 font-medium">Registro</th>
+                    <th className="text-left pb-2 font-medium">Estado</th>
+                    <th className="text-left pb-2 font-medium">Plan</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-900">
+                  {users.recent.map(u => (
+                    <tr key={u.id} className="hover:bg-zinc-900/40 transition">
+                      <td className="py-2 pr-3 text-zinc-300 font-medium">{u.name ?? '—'}</td>
+                      <td className="py-2 pr-3">
+                        <div className="text-zinc-400">{u.email ?? '—'}</div>
+                        {u.phone && <div className="text-zinc-600">{u.phone}</div>}
+                      </td>
+                      <td className="py-2 pr-3 text-zinc-500 whitespace-nowrap">{formatDate(u.createdAt)}</td>
+                      <td className="py-2 pr-3">
+                        {u.emailVerified ? (
+                          <span className="text-green-400 bg-green-900/20 border border-green-900/40 px-1.5 py-0.5 rounded text-[0.65rem]">✓ Verificado</span>
+                        ) : (
+                          <span className="text-yellow-400 bg-yellow-900/20 border border-yellow-900/40 px-1.5 py-0.5 rounded text-[0.65rem]">⏳ Pendiente</span>
+                        )}
+                      </td>
+                      <td className="py-2 text-zinc-500 capitalize">{u.plan ?? 'free'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* Security section */}

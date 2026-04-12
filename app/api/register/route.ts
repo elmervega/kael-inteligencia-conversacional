@@ -51,7 +51,7 @@ async function registerHandler(req: NextRequest) {
     const verifyUrl = `${process.env.NEXTAUTH_URL}/verify-email?token=${token}`
     const resend = new Resend(process.env.RESEND_API_KEY)
 
-    await resend.emails.send({
+    const emailResult = await resend.emails.send({
       from: 'Kael <noreply@kael.quest>',
       to: email,
       subject: 'Confirma tu email — Kael',
@@ -67,7 +67,13 @@ async function registerHandler(req: NextRequest) {
       `
     })
 
-    return NextResponse.json({ message: 'Check your email to verify your account.', emailSent: true }, { status: 201 })
+    if (emailResult.error) {
+      console.error(`[register] Resend error for ${email}:`, JSON.stringify(emailResult.error))
+    } else {
+      console.log(`[register] Verification email sent to ${email} | id: ${emailResult.data?.id}`)
+    }
+
+    return NextResponse.json({ message: 'Check your email to verify your account.', emailSent: !emailResult.error }, { status: 201 })
   } catch (error) {
     return handleApiError(error, 'register_post', ERROR_CODES.INTERNAL_SERVER_ERROR, 500)
   }
