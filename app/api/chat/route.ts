@@ -1,24 +1,35 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { cacheGet, cacheSet, getCacheKey } from "@/lib/redis";
+import { prisma } from "@/lib/prisma";
 
-// Rate limiting por userId (en memoria)
+// Límites por plan
+const PLAN_LIMITS: Record<string, { limit: number; window: number }> = {
+  free: { limit: 25, window: 3_600_000 },       // 25 msg / 1 hora
+  pro:  { limit: 500, window: 2_592_000_000 },   // 500 msg / 30 días
+};
+
+// Rate limiting por userId en memoria (clave incluye plan para evitar colisiones)
 const userRequestCount = new Map<string, { count: number; resetTime: number }>();
-const RATE_LIMIT = 50;
-const RATE_WINDOW = 3600000; // 1 hora
 
-function checkRateLimit(userId: string): { allowed: boolean; remaining: number } {
+function checkRateLimit(
+  userId: string,
+  plan: string,
+  limit: number,
+  window: number
+): { allowed: boolean; remaining: number } {
+  const key = `ratelimit:${plan}:${userId}`;
   const now = Date.now();
-  const data = userRequestCount.get(userId);
+  const data = userRequestCount.get(key);
 
   if (!data || now > data.resetTime) {
-    userRequestCount.set(userId, { count: 1, resetTime: now + RATE_WINDOW });
-    return { allowed: true, remaining: RATE_LIMIT - 1 };
+    userRequestCount.set(key, { count: 1, resetTime: now + window });
+    return { allowed: true, remaining: limit - 1 };
   }
-  if (data.count >= RATE_LIMIT) return { allowed: false, remaining: 0 };
+  if (data.count >= limit) return { allowed: false, remaining: 0 };
 
   data.count++;
-  return { allowed: true, remaining: RATE_LIMIT - data.count };
+  return { allowed: true, remaining: limit - data.count };
 }
 
 export async function POST(req: Request) {
@@ -32,16 +43,34 @@ export async function POST(req: Request) {
     const userId = session.user.id;
     const userName = session.user.name?.split(" ")[0] ?? "Usuario";
 
-    // 2. Rate limiting
-    const { allowed, remaining } = checkRateLimit(userId);
+    // 2. Obtener plan del usuario desde la BD
+    const dbUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { plan: true },
+    });
+    const plan = dbUser?.plan ?? "free";
+    const planConfig = PLAN_LIMITS[plan] ?? PLAN_LIMITS.free;
+
+    // 3. Rate limiting dinámico basado en plan
+    const { allowed, remaining } = checkRateLimit(
+      userId,
+      plan,
+      planConfig.limit,
+      planConfig.window
+    );
     if (!allowed) {
       return NextResponse.json(
-        { error: "Límite de mensajes alcanzado. Intenta en una hora." },
+        {
+          error:
+            plan === "free"
+              ? `Has alcanzado el límite de tu plan Free (${planConfig.limit} mensajes/hora). Mejora al Plan Pro para más mensajes.`
+              : `Has alcanzado el límite de tu plan Pro (${planConfig.limit} mensajes/mes). Intenta más tarde.`,
+        },
         { status: 429 }
       );
     }
 
-    // 3. Validar body
+    // 4. Validar body
     const body = await req.json();
     const { message, history } = body as {
       message: string;
@@ -57,7 +86,7 @@ export async function POST(req: Request) {
 
     const trimmedMessage = message.trim();
 
-    // 4. Cache (solo para mensajes sin historial previo, para ahorrar costos)
+    // 5. Cache (solo para mensajes sin historial previo, para ahorrar costos)
     const cacheKey = getCacheKey(userId, trimmedMessage);
     if (!history || history.length === 0) {
       const cached = await cacheGet(cacheKey);
@@ -72,14 +101,14 @@ export async function POST(req: Request) {
       }
     }
 
-    // 5. Verificar OPENAI_API_KEY
+    // 6. Verificar OPENAI_API_KEY
     const openaiApiKey = process.env.OPENAI_API_KEY;
     if (!openaiApiKey) {
       console.error("OPENAI_API_KEY not configured");
       return NextResponse.json({ error: "Servicio no disponible" }, { status: 503 });
     }
 
-    // 6. Construir historial de mensajes para OpenAI
+    // 7. Construir historial de mensajes para OpenAI
     const recentHistory = history?.slice(-10) ?? [];
     const messages = [
       {
@@ -90,7 +119,7 @@ export async function POST(req: Request) {
       { role: "user" as const, content: trimmedMessage },
     ];
 
-    // 7. Llamar a OpenAI con timeout
+    // 8. Llamar a OpenAI con timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000);
 
@@ -128,10 +157,7 @@ export async function POST(req: Request) {
       }
 
       const data = await res.json();
-      if (
-        !data.choices ||
-        !data.choices[0]?.message?.content
-      ) {
+      if (!data.choices || !data.choices[0]?.message?.content) {
         console.error("Unexpected OpenAI response structure", data);
         return NextResponse.json(
           { error: "Respuesta inesperada del servicio" },
@@ -151,7 +177,7 @@ export async function POST(req: Request) {
       throw err;
     }
 
-    // 8. Guardar en cache (solo si no había historial previo)
+    // 9. Guardar en cache (solo si no había historial previo)
     if (!history || history.length === 0) {
       await cacheSet(
         cacheKey,
@@ -160,7 +186,7 @@ export async function POST(req: Request) {
       );
     }
 
-    console.log(`[Web Chat] User: ${userId} (${userName}) | Remaining: ${remaining}`);
+    console.log(`[Web Chat] User: ${userId} (${userName}) | Plan: ${plan} | Remaining: ${remaining}`);
 
     return NextResponse.json({
       success: true,
