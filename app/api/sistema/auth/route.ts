@@ -45,12 +45,10 @@ export async function POST(req: NextRequest) {
   const invalid = () =>
     NextResponse.json({ error: 'Credenciales incorrectas' }, { status: 401 })
 
-  console.log('[sistema/auth] validUser:', !!validUser, '| validHash len:', (validHash ?? '').length, '| username:', username, '| hasPassword:', !!password)
   if (!validUser || !validHash || !username || !password) return invalid()
   if (username !== validUser) return invalid()
 
   const passwordOk = await bcrypt.compare(password, validHash)
-  console.log('[sistema/auth] passwordOk:', passwordOk)
   if (!passwordOk) return invalid()
 
   const token = await signSistemaToken(username)
