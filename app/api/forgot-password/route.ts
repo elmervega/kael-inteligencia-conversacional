@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 import crypto from 'crypto'
-import { checkRateLimit } from '@/lib/rateLimit'
+import { checkRateLimitRedis } from '@/lib/rateLimitRedis'
 
 export async function POST(req: NextRequest) {
   const resend = new Resend(process.env.RESEND_API_KEY)
   const ip = req.headers.get('cf-connecting-ip') ?? req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown'
-  const rl = checkRateLimit(`forgot:${ip}`, 3, 15 * 60 * 1000)
-  if (rl.limited) {
+  const { allowed } = await checkRateLimitRedis(`forgot:${ip}`, 3, 15 * 60 * 1000)
+  if (!allowed) {
     return NextResponse.json(
       { error: 'Too many requests. Please try again later.' },
       { status: 429 }
