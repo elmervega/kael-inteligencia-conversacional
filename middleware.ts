@@ -1,17 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { jwtVerify } from 'jose'
 
-export function middleware(request: NextRequest) {
+async function verifySistemaJWT(token: string): Promise<boolean> {
+  try {
+    const secret = new TextEncoder().encode(process.env.SISTEMA_JWT_SECRET ?? '')
+    await jwtVerify(token, secret)
+    return true
+  } catch {
+    return false
+  }
+}
+
+export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
+  // Protección del panel de sistema (JWT propio, independiente de NextAuth)
+  if (
+    pathname.startsWith('/dashboard-sistema') ||
+    (pathname.startsWith('/api/sistema/') && !pathname.startsWith('/api/sistema/auth'))
+  ) {
+    const token = request.cookies.get('sistema-session')?.value
+    if (!token) {
+      return NextResponse.redirect(new URL('/sistema/login', request.url))
+    }
+    const valid = await verifySistemaJWT(token)
+    if (!valid) {
+      return NextResponse.redirect(new URL('/sistema/login', request.url))
+    }
+    return NextResponse.next()
+  }
+
+  // Protección del dashboard de Kael (NextAuth session cookie)
   if (pathname.startsWith('/dashboard')) {
-    // Leer el header Cookie directamente para evitar problemas con el
-    // parsing de cookies __Secure- en el Edge Runtime de Next.js
     const cookieHeader = request.headers.get('cookie') ?? ''
     const hasSession = cookieHeader.includes('authjs.session-token=')
-
     if (!hasSession) {
-      const loginUrl = new URL('/login', request.url)
-      return NextResponse.redirect(loginUrl)
+      return NextResponse.redirect(new URL('/login', request.url))
     }
   }
 
@@ -19,5 +43,10 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*'],
+  matcher: [
+    '/dashboard/:path*',
+    '/dashboard-sistema',
+    '/dashboard-sistema/:path*',
+    '/api/sistema/:path*',
+  ],
 }
