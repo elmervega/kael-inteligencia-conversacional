@@ -15,16 +15,17 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
   // Protección del panel de sistema (JWT propio, independiente de NextAuth)
-  if (
-    pathname.startsWith('/dashboard-sistema') ||
-    (pathname.startsWith('/api/sistema/') && !pathname.startsWith('/api/sistema/auth'))
-  ) {
+  const isSistemaPage = pathname.startsWith('/dashboard-sistema')
+  const isSistemaApi = pathname.startsWith('/api/sistema/') && !pathname.startsWith('/api/sistema/auth')
+
+  if (isSistemaPage || isSistemaApi) {
     const token = request.cookies.get('sistema-session')?.value
-    if (!token) {
-      return NextResponse.redirect(new URL('/sistema/login', request.url))
-    }
-    const valid = await verifySistemaJWT(token)
-    if (!valid) {
+
+    if (!token || !(await verifySistemaJWT(token))) {
+      // API routes retornan JSON 401 — páginas redirigen al login
+      if (isSistemaApi) {
+        return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+      }
       return NextResponse.redirect(new URL('/sistema/login', request.url))
     }
     return NextResponse.next()
