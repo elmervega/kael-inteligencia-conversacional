@@ -104,3 +104,39 @@ model Recordatorio {
 
   @@map("recordatorios")
 }
+
+// Tabla de uso de API — trackea tokens y costo por llamada a OpenAI
+model ApiUsage {
+  id               Int      @id @default(autoincrement())
+  userId           String
+  model            String   @default("gpt-4o-mini")
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  costUsd          Decimal  @default(0) @db.Decimal(10, 6)
+  createdAt        DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("api_usage")
+}
+
+// Tablas externas de n8n — solo lectura desde kael-web, sin migrations
+model ConversationMemory {
+  id           Int       @id @default(autoincrement())
+  userId       String?   @map("user_id")
+  userMessage  String?   @map("user_message")
+  kaelResponse String?   @map("kael_response")
+  timestamp    DateTime? @default(now())
+
+  @@map("conversation_memory")
+}
+
+model BotReminder {
+  id           Int       @id @default(autoincrement())
+  chatId       String?   @map("chat_id")
+  reminderText String?   @map("reminder_text")
+  remindAt     DateTime? @map("remind_at")
+  sent         Boolean?  @default(false)
+
+  @@map("reminders")
+}

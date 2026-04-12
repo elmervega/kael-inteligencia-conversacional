@@ -143,6 +143,17 @@ export async function POST(req: Request) {
       }
 
       kaelResponse = data.choices[0].message.content;
+
+      // 9. Registrar uso de API para tracking de costos (fire & forget)
+      // gpt-4o-mini: $0.15/1M input tokens, $0.60/1M output tokens
+      const promptTokens     = data.usage?.prompt_tokens     ?? 0
+      const completionTokens = data.usage?.completion_tokens ?? 0
+      const costUsd = (promptTokens * 0.15 + completionTokens * 0.60) / 1_000_000
+
+      prisma.apiUsage.create({
+        data: { userId, model: 'gpt-4o-mini', promptTokens, completionTokens, costUsd }
+      }).catch(err => console.error('[ApiUsage] Failed to record:', err))
+
     } catch (err) {
       clearTimeout(timeoutId);
       if (err instanceof Error && err.name === "AbortError") {
@@ -154,7 +165,7 @@ export async function POST(req: Request) {
       throw err;
     }
 
-    // 9. Guardar en cache (solo si no había historial previo)
+    // 10. Guardar en cache (solo si no había historial previo)
     if (!history || history.length === 0) {
       await cacheSet(
         cacheKey,

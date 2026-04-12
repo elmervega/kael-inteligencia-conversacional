@@ -24,26 +24,25 @@ export default async function ConversationsPage({
   const limit = isPro ? 20 : 5
   const offset = (page - 1) * limit
 
-  let conversations: any[] = []
+  let conversations: { id: number; userMessage: string | null; kaelResponse: string | null; timestamp: Date | null }[] = []
   let total = 0
 
   if (user?.telegramChatId) {
-    const [rows, countRows] = await Promise.all([
-      prisma.$queryRaw<any[]>`
-        SELECT id, user_message, kael_response, timestamp
-        FROM conversation_memory
-        WHERE user_id = ${user.telegramChatId}
-          AND user_message IS NOT NULL AND kael_response IS NOT NULL
-        ORDER BY timestamp DESC
-        LIMIT ${limit} OFFSET ${offset}
-      `,
-      prisma.$queryRaw<Array<{ count: bigint }>>`
-        SELECT COUNT(*) as count FROM conversation_memory
-        WHERE user_id = ${user.telegramChatId} AND user_message IS NOT NULL
-      `
+    const where = {
+      userId: user.telegramChatId,
+      userMessage: { not: null as null },
+      kaelResponse: { not: null as null }
+    }
+    ;[conversations, total] = await Promise.all([
+      prisma.conversationMemory.findMany({
+        where,
+        orderBy: { timestamp: 'desc' },
+        take: limit,
+        skip: offset,
+        select: { id: true, userMessage: true, kaelResponse: true, timestamp: true }
+      }),
+      prisma.conversationMemory.count({ where })
     ])
-    conversations = rows
-    total = Number(countRows[0]?.count ?? 0)
   }
 
   const totalPages = Math.ceil(total / limit)
@@ -68,21 +67,21 @@ export default async function ConversationsPage({
         </div>
       ) : (
         <div className="space-y-3">
-          {conversations.map((c: any) => (
+          {conversations.map(c => (
             <div key={c.id} className="rounded-xl border border-[#1e1e1e] bg-[#111] p-4">
               <p className="text-[0.7rem] text-zinc-600 mb-2">
-                {new Date(c.timestamp).toLocaleString('es', {
+                {c.timestamp && new Date(c.timestamp).toLocaleString('es', {
                   weekday: 'short', month: 'short', day: 'numeric',
                   hour: '2-digit', minute: '2-digit'
                 })}
               </p>
               <p className="text-sm text-zinc-200 mb-1.5">
                 <span className="text-indigo-400 font-semibold mr-1.5">Tú:</span>
-                {c.user_message}
+                {c.userMessage}
               </p>
               <p className="text-sm text-zinc-400">
                 <span className="text-violet-400 font-semibold mr-1.5">Kael:</span>
-                {c.kael_response}
+                {c.kaelResponse}
               </p>
             </div>
           ))}

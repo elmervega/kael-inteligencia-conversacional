@@ -20,46 +20,40 @@ async function getStats(userId: string) {
     return { totalConversations: 0, activeReminders: 0, daysSince }
   }
 
-  const [convResult, remResult] = await Promise.all([
-    prisma.$queryRaw<Array<{ count: bigint }>>`
-      SELECT COUNT(*) as count FROM conversation_memory
-      WHERE user_id = ${user.telegramChatId} AND user_message IS NOT NULL
-    `,
-    prisma.$queryRaw<Array<{ count: bigint }>>`
-      SELECT COUNT(*) as count FROM reminders
-      WHERE chat_id = ${user.telegramChatId} AND sent = false
-    `
+  const [totalConversations, activeReminders] = await Promise.all([
+    prisma.conversationMemory.count({
+      where: { userId: user.telegramChatId, userMessage: { not: null } }
+    }),
+    prisma.botReminder.count({
+      where: { chatId: user.telegramChatId, sent: false }
+    })
   ])
 
-  return {
-    totalConversations: Number(convResult[0]?.count ?? 0),
-    activeReminders: Number(remResult[0]?.count ?? 0),
-    daysSince
-  }
+  return { totalConversations, activeReminders, daysSince }
 }
 
 async function getRecentConversations(telegramChatId: string | null) {
   if (!telegramChatId) return []
-  return prisma.$queryRaw<Array<{
-    id: number; user_message: string; kael_response: string; timestamp: Date
-  }>>`
-    SELECT id, user_message, kael_response, timestamp
-    FROM conversation_memory
-    WHERE user_id = ${telegramChatId}
-      AND user_message IS NOT NULL AND kael_response IS NOT NULL
-    ORDER BY timestamp DESC LIMIT 2
-  `
+  return prisma.conversationMemory.findMany({
+    where: {
+      userId: telegramChatId,
+      userMessage: { not: null },
+      kaelResponse: { not: null }
+    },
+    orderBy: { timestamp: 'desc' },
+    take: 2,
+    select: { id: true, userMessage: true, kaelResponse: true, timestamp: true }
+  })
 }
 
 async function getActiveReminders(telegramChatId: string | null) {
   if (!telegramChatId) return []
-  return prisma.$queryRaw<Array<{
-    id: number; reminder_text: string; remind_at: Date; sent: boolean
-  }>>`
-    SELECT id, reminder_text, remind_at, sent
-    FROM reminders WHERE chat_id = ${telegramChatId}
-    ORDER BY remind_at ASC LIMIT 3
-  `
+  return prisma.botReminder.findMany({
+    where: { chatId: telegramChatId },
+    orderBy: { remindAt: 'asc' },
+    take: 3,
+    select: { id: true, reminderText: true, remindAt: true, sent: true }
+  })
 }
 
 export default async function DashboardPage() {
@@ -165,11 +159,11 @@ export default async function DashboardPage() {
                     </div>
                     <p className="text-xs text-zinc-300 truncate">
                       <span className="text-indigo-400 font-semibold mr-1">Tú:</span>
-                      {c.user_message}
+                      {c.userMessage}
                     </p>
                     <p className="text-xs text-zinc-600 truncate mt-0.5">
                       <span className="text-violet-400 font-semibold mr-1">Kael:</span>
-                      {c.kael_response}
+                      {c.kaelResponse}
                     </p>
                   </div>
                 ))}
@@ -192,10 +186,10 @@ export default async function DashboardPage() {
                   <div key={r.id} className="flex items-center gap-3 py-2.5 border-b border-[#161616] last:border-0">
                     <div className={`w-2 h-2 rounded-full shrink-0 ${r.sent ? 'bg-zinc-700' : 'bg-indigo-500'}`} />
                     <span className={`text-sm flex-1 ${r.sent ? 'line-through text-zinc-600' : 'text-zinc-300'}`}>
-                      {r.reminder_text}
+                      {r.reminderText}
                     </span>
                     <span className="text-[0.7rem] text-zinc-600 whitespace-nowrap">
-                      {new Date(r.remind_at).toLocaleString('es', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      {new Date(r.remindAt!).toLocaleString('es', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
                 ))}
