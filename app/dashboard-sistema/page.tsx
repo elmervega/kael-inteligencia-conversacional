@@ -44,7 +44,25 @@ interface UsersData {
   recent: UserRow[]
 }
 
-type Tab = 'overview' | 'clients' | 'logs'
+interface DailyEntry {
+  day: string
+  calls: number
+  cost: number
+}
+
+interface CostsData {
+  month: string
+  costUsd: number
+  limitUsd: number
+  percentUsed: number
+  totalCalls: number
+  promptTokens: number
+  completionTokens: number
+  daily: DailyEntry[]
+  allTime: { costUsd: number; totalCalls: number }
+}
+
+type Tab = 'overview' | 'clients' | 'logs' | 'costs'
 type FilterLevel = 'all' | 'error' | 'warning' | 'info'
 
 /* ─── Main component ─────────────────────────────────── */
@@ -57,6 +75,7 @@ export default function DashboardSistema() {
   const [logs, setLogs] = useState<Log[]>([])
   const [security, setSecurity] = useState<SecurityData | null>(null)
   const [users, setUsers] = useState<UsersData | null>(null)
+  const [costs, setCosts] = useState<CostsData | null>(null)
 
   // UI state
   const [logsError, setLogsError] = useState(false)
@@ -113,14 +132,22 @@ export default function DashboardSistema() {
     } catch {}
   }, [])
 
+  const fetchCosts = useCallback(async () => {
+    try {
+      const res = await fetch('/api/sistema/costs')
+      if (res.ok) setCosts(await res.json())
+    } catch {}
+  }, [])
+
   useEffect(() => {
-    fetchServices(); fetchLogs(); fetchSecurity(); fetchUsers()
+    fetchServices(); fetchLogs(); fetchSecurity(); fetchUsers(); fetchCosts()
     const t1 = setInterval(fetchServices, 60000)   // servicios: cada 60s
     const t2 = setInterval(fetchLogs, 30000)        // logs: cada 30s
     const t3 = setInterval(fetchSecurity, 60000)    // seguridad: cada 60s
     const t4 = setInterval(fetchUsers, 60000)       // usuarios: cada 60s
-    return () => { clearInterval(t1); clearInterval(t2); clearInterval(t3); clearInterval(t4) }
-  }, [fetchServices, fetchLogs, fetchSecurity, fetchUsers])
+    const t5 = setInterval(fetchCosts, 300000)      // costos: cada 5min
+    return () => { clearInterval(t1); clearInterval(t2); clearInterval(t3); clearInterval(t4); clearInterval(t5) }
+  }, [fetchServices, fetchLogs, fetchSecurity, fetchUsers, fetchCosts])
 
   /* ── Delete user ── */
   const handleDeleteConfirm = async () => {
@@ -229,6 +256,14 @@ export default function DashboardSistema() {
           {logs.filter(l => l.level === 'error').length > 0 && (
             <span className="ml-1.5 text-[0.65rem] bg-red-900/60 text-red-300 px-1.5 py-0.5 rounded-full">
               {logs.filter(l => l.level === 'error').length}
+            </span>
+          )}
+        </button>
+        <button className={tabClass('costs')} onClick={() => setTab('costs')}>
+          💸 Costos IA
+          {costs && costs.percentUsed >= 0.8 && (
+            <span className="ml-1.5 text-[0.65rem] bg-yellow-900/60 text-yellow-300 px-1.5 py-0.5 rounded-full">
+              {Math.round(costs.percentUsed * 100)}%
             </span>
           )}
         </button>
@@ -549,6 +584,141 @@ export default function DashboardSistema() {
             )}
           </div>
         )}
+        {/* ─── TAB: COSTS ─── */}
+        {tab === 'costs' && (
+          <>
+            {/* Monthly summary */}
+            <div className="bg-zinc-900/30 border border-zinc-800 rounded-2xl p-5">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-sm font-semibold text-white">💸 Costos OpenAI — {costs?.month ?? '...'}</h2>
+                    <span className="text-[0.6rem] bg-zinc-800/80 border border-zinc-700 text-zinc-400 px-2 py-0.5 rounded-full">
+                      gpt-4o-mini · $0.15/1M input · $0.60/1M output
+                    </span>
+                  </div>
+                  <p className="text-[0.68rem] text-zinc-600 mt-0.5">Consumo acumulado del mes actual vs. tope de alerta configurado.</p>
+                </div>
+                <button
+                  onClick={fetchCosts}
+                  className="text-xs text-zinc-500 border border-zinc-800 px-3 py-1.5 rounded-lg hover:bg-zinc-900 hover:text-zinc-300 transition shrink-0"
+                >
+                  Refrescar
+                </button>
+              </div>
+
+              {!costs ? (
+                <p className="text-xs text-zinc-600 py-4">Cargando datos de costos...</p>
+              ) : (
+                <>
+                  {/* KPI cards */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+                    <div className={`rounded-xl p-4 border ${costs.percentUsed >= 0.95 ? 'bg-red-950/30 border-red-900/50' : costs.percentUsed >= 0.8 ? 'bg-yellow-950/30 border-yellow-900/50' : 'bg-zinc-900/50 border-zinc-800'}`}>
+                      <p className="text-[0.68rem] text-zinc-500 uppercase tracking-wider mb-1">Gasto del mes</p>
+                      <p className={`text-2xl font-bold ${costs.percentUsed >= 0.95 ? 'text-red-400' : costs.percentUsed >= 0.8 ? 'text-yellow-400' : 'text-white'}`}>
+                        ${costs.costUsd.toFixed(4)}
+                      </p>
+                      <p className="text-[0.65rem] text-zinc-600 mt-1">de ${costs.limitUsd} límite</p>
+                    </div>
+                    <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4">
+                      <p className="text-[0.68rem] text-zinc-500 uppercase tracking-wider mb-1">Llamadas API</p>
+                      <p className="text-2xl font-bold text-white">{costs.totalCalls.toLocaleString()}</p>
+                      <p className="text-[0.65rem] text-zinc-600 mt-1">este mes</p>
+                    </div>
+                    <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4">
+                      <p className="text-[0.68rem] text-zinc-500 uppercase tracking-wider mb-1">Tokens entrada</p>
+                      <p className="text-2xl font-bold text-white">{costs.promptTokens.toLocaleString()}</p>
+                      <p className="text-[0.65rem] text-zinc-600 mt-1">prompt tokens</p>
+                    </div>
+                    <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4">
+                      <p className="text-[0.68rem] text-zinc-500 uppercase tracking-wider mb-1">Tokens salida</p>
+                      <p className="text-2xl font-bold text-white">{costs.completionTokens.toLocaleString()}</p>
+                      <p className="text-[0.65rem] text-zinc-600 mt-1">completion tokens</p>
+                    </div>
+                  </div>
+
+                  {/* Progress bar */}
+                  <div className="mb-5">
+                    <div className="flex justify-between text-[0.68rem] mb-1.5">
+                      <span className="text-zinc-500">Uso del tope mensual</span>
+                      <span className={costs.percentUsed >= 0.95 ? 'text-red-400 font-semibold' : costs.percentUsed >= 0.8 ? 'text-yellow-400 font-semibold' : 'text-zinc-400'}>
+                        {(costs.percentUsed * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="h-2.5 bg-zinc-800 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          costs.percentUsed >= 0.95
+                            ? 'bg-red-500'
+                            : costs.percentUsed >= 0.8
+                            ? 'bg-yellow-500'
+                            : 'bg-indigo-500'
+                        }`}
+                        style={{ width: `${Math.min(costs.percentUsed * 100, 100)}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-[0.62rem] text-zinc-700 mt-1">
+                      <span>$0</span>
+                      <span className="text-yellow-700">Alerta 80% (${(costs.limitUsd * 0.8).toFixed(0)})</span>
+                      <span>${costs.limitUsd}</span>
+                    </div>
+                  </div>
+
+                  {/* Alert badges */}
+                  {costs.percentUsed >= 0.95 && (
+                    <div className="bg-red-950/40 border border-red-800 rounded-xl p-3 mb-4">
+                      <p className="text-xs text-red-300 font-semibold">🚨 Crítico: superaste el 95% del tope. Revisa el dashboard de OpenAI o reduce el uso de la API inmediatamente.</p>
+                    </div>
+                  )}
+                  {costs.percentUsed >= 0.8 && costs.percentUsed < 0.95 && (
+                    <div className="bg-yellow-950/40 border border-yellow-800 rounded-xl p-3 mb-4">
+                      <p className="text-xs text-yellow-300">⚠️ Advertencia: estás al {Math.round(costs.percentUsed * 100)}% del tope mensual de ${costs.limitUsd}.</p>
+                    </div>
+                  )}
+
+                  {/* Daily breakdown */}
+                  {costs.daily.length > 0 && (
+                    <div>
+                      <p className="text-[0.68rem] text-zinc-500 uppercase tracking-wider mb-3">Detalle por día</p>
+                      <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
+                        {[...costs.daily].reverse().map(d => (
+                          <div key={d.day} className="flex items-center gap-3 py-2 border-b border-zinc-800/60 last:border-0">
+                            <span className="text-[0.68rem] text-zinc-500 font-mono w-24 shrink-0">{d.day}</span>
+                            <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-indigo-600 rounded-full"
+                                style={{ width: `${Math.min((d.cost / (costs.limitUsd / 30)) * 100, 100)}%` }}
+                              />
+                            </div>
+                            <span className="text-[0.68rem] text-zinc-400 font-mono w-20 text-right shrink-0">${d.cost.toFixed(5)}</span>
+                            <span className="text-[0.65rem] text-zinc-600 w-16 text-right shrink-0">{d.calls} calls</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {costs.daily.length === 0 && (
+                    <p className="text-xs text-zinc-600 text-center py-4">No hay llamadas registradas este mes.</p>
+                  )}
+
+                  {/* All-time totals */}
+                  <div className="mt-5 pt-4 border-t border-zinc-800 flex gap-6">
+                    <div>
+                      <p className="text-[0.65rem] text-zinc-600 uppercase tracking-wider">Total histórico</p>
+                      <p className="text-sm text-zinc-300 font-semibold mt-0.5">${costs.allTime.costUsd.toFixed(4)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[0.65rem] text-zinc-600 uppercase tracking-wider">Llamadas totales</p>
+                      <p className="text-sm text-zinc-300 font-semibold mt-0.5">{costs.allTime.totalCalls.toLocaleString()}</p>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </>
+        )}
+
       </div>
 
       {/* ─── Modal confirmar eliminación ─── */}
