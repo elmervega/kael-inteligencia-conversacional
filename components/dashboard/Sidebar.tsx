@@ -84,7 +84,7 @@ function NavLinks({
             <span className="text-base w-5 text-center">💎</span>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold text-indigo-300 group-hover:text-indigo-200 transition-colors truncate">Actualizar a Pro</p>
-              <p className="text-[0.6rem] text-zinc-600 truncate">B/. 9.99 / mes · Yappy</p>
+              <p className="text-[0.6rem] text-zinc-600 truncate">B/. 2.99 / mes · Yappy</p>
             </div>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 text-indigo-400 shrink-0">
               <path d="M7 17L17 7M17 7H7M17 7v10"/>

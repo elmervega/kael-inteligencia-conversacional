@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'Kael — No es una IA. Es Kael.',
   description: 'Una presencia que te escucha, recuerda y cuestiona. Diseñada para acompañarte, no solo responder.',
-  keywords: ['kael', 'inteligencia artificial', 'asistente', 'telegram', 'recordatorios', 'IA conversacional'],
+  keywords: ['kael', 'inteligencia artificial', 'asistente', 'chat', 'recordatorios', 'IA conversacional'],
   authors: [{ name: 'Elmer Aron Vega' }],
   creator: 'Elmer Aron Vega',
   metadataBase: new URL('https://kael.quest'),

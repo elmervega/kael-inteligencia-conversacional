@@ -341,8 +341,8 @@ export default function Home() {
                 },
                 {
                   step: '02',
-                  title: 'Abre WhatsApp',
-                  desc: 'Escríbele a Kael por WhatsApp. Sin instalar nada extra, desde el número que ya usas.',
+                  title: 'Abre el chat',
+                  desc: 'Entra al dashboard y empieza a chatear con Kael directamente desde la web. Sin apps adicionales.',
                   color: 'text-violet-400',
                   border: 'border-violet-500/20',
                   glow: 'bg-violet-500/5',
@@ -433,7 +433,7 @@ export default function Home() {
                     <div className="w-2.5 h-2.5 rounded-full bg-zinc-700" />
                     <div className="w-2.5 h-2.5 rounded-full bg-zinc-700" />
                   </div>
-                  <span className="text-xs text-zinc-600 ml-2">Kael · WhatsApp</span>
+                  <span className="text-xs text-zinc-600 ml-2">Kael · Chat Web</span>
                 </div>
                 <div className="p-5 space-y-3">
                   {[
@@ -720,7 +720,7 @@ export default function Home() {
                 name: 'Gratis',
                 price: '$0',
                 period: 'para siempre',
-                features: ['20 mensajes por día', '3 recordatorios activos', 'Memoria básica', 'Acceso por WhatsApp'],
+                features: ['20 mensajes por día', '3 recordatorios activos', 'Memoria básica', 'Chat desde la web'],
                 cta: 'Comenzar',
                 highlight: false
               },

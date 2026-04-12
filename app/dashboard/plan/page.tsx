@@ -6,17 +6,24 @@ import Image from 'next/image'
 import { useState } from 'react'
 
 const PRO_FEATURES = [
-  { icon: '💬', label: '500 mensajes al mes', sub: 'vs 25 mensajes por hora en Free' },
-  { icon: '📜', label: 'Historial completo', sub: 'Acceso a tus últimas 100 conversaciones' },
-  { icon: '✍️', label: 'Instrucción especial para Kael', sub: 'Personaliza el comportamiento de la IA' },
-  { icon: '🔔', label: 'Recordatorios desde la web', sub: 'Crea y gestiona recordatorios sin Telegram' },
+  { icon: '💬', label: 'Mensajes ilimitados', sub: 'vs 20 mensajes por día en Free' },
+  { icon: '🔔', label: 'Recordatorios ilimitados', sub: 'Sin límite de recordatorios activos' },
+  { icon: '🧠', label: 'Memoria persistente', sub: 'Kael recuerda todo a largo plazo' },
+  { icon: '🎙️', label: 'Audios y voz', sub: 'Envía mensajes de voz a Kael' },
   { icon: '⚡', label: 'Prioridad en respuestas', sub: 'Menor latencia, mayor velocidad' },
+]
+
+const EMPRESARIAL_FEATURES = [
+  { icon: '✅', label: 'Todo lo del Plan Pro', sub: 'Incluye todas las funciones anteriores' },
+  { icon: '👥', label: 'Múltiples usuarios', sub: 'Gestiona varios usuarios en tu cuenta' },
+  { icon: '🛡️', label: 'Soporte prioritario', sub: 'Respuesta en menos de 2 horas' },
+  { icon: '🎨', label: 'Personalización avanzada', sub: 'Adapta Kael completamente a tu negocio' },
 ]
 
 const STEPS = [
   'Abre la app de Yappy en tu teléfono.',
   'Escanea el código QR o envía al número 6335-9701.',
-  'Envía B/. 9.99 con tu correo de Kael como nota.',
+  'Envía B/. 2.99 con tu correo de Kael como nota.',
   'Toma captura de pantalla del pago confirmado.',
   'Envíanos la captura al soporte para activar Pro.',
 ]
@@ -72,7 +79,7 @@ export default function PlanPage() {
           <p className="text-sm text-emerald-400 mt-2">Tienes acceso completo a todas las funciones de Kael.</p>
         ) : (
           <p className="text-sm text-zinc-500 mt-2">
-            Estás en el plan gratuito · <span className="text-white font-medium">25 mensajes/hora</span>
+            Estás en el plan gratuito · <span className="text-white font-medium">20 mensajes/día</span>
           </p>
         )}
       </div>
@@ -105,7 +112,7 @@ export default function PlanPage() {
               <p className="text-[0.68rem] text-zinc-500 mt-0.5">Pago manual · se activa en menos de 24h</p>
             </div>
             <div className="text-right">
-              <p className="text-2xl font-bold text-white">B/. 9.99</p>
+              <p className="text-2xl font-bold text-white">B/. 2.99</p>
               <p className="text-[0.65rem] text-zinc-500">al mes</p>
             </div>
           </div>
@@ -143,7 +150,7 @@ export default function PlanPage() {
               </div>
               <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl px-4 py-3">
                 <p className="text-[0.65rem] text-zinc-500 uppercase tracking-wider mb-1">Monto</p>
-                <span className="text-sm font-bold text-white">B/. 9.99</span>
+                <span className="text-sm font-bold text-white">B/. 2.99</span>
                 <span className="text-[0.65rem] text-zinc-600 ml-2">mensual</span>
               </div>
             </div>
@@ -185,11 +192,44 @@ export default function PlanPage() {
         </div>
       )}
 
+      {/* Plan Empresarial — visible para todos */}
+      <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5">
+        <div className="flex items-start justify-between mb-4 flex-wrap gap-3">
+          <div>
+            <p className="text-[0.65rem] uppercase tracking-widest text-amber-500/70 mb-0.5">Empresarial</p>
+            <p className="text-sm font-bold text-white">Para equipos y negocios</p>
+          </div>
+          <div className="text-right">
+            <p className="text-2xl font-bold text-white">B/. 9.99</p>
+            <p className="text-[0.65rem] text-zinc-500">al mes</p>
+          </div>
+        </div>
+        <div className="space-y-2.5 mb-4">
+          {EMPRESARIAL_FEATURES.map(f => (
+            <div key={f.label} className="flex items-start gap-2.5">
+              <span className="text-base mt-0.5 shrink-0">{f.icon}</span>
+              <div>
+                <p className="text-sm font-medium text-zinc-200">{f.label}</p>
+                <p className="text-[0.68rem] text-zinc-600">{f.sub}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <a
+          href="https://t.me/KaelSoporte"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-amber-600/80 hover:bg-amber-600 rounded-lg transition"
+        >
+          Contactar para contratar
+        </a>
+      </div>
+
       {/* Usuario Pro — gestión */}
       {isPro && (
         <div className="rounded-2xl border border-zinc-800 bg-zinc-900/30 p-5">
           <p className="text-sm font-semibold text-white mb-3">Tu suscripción Pro</p>
-          <p className="text-xs text-zinc-500 mb-4">Para cancelar o cambiar tu plan, contacta al soporte via Telegram.</p>
+          <p className="text-xs text-zinc-500 mb-4">Para cancelar o cambiar tu plan, contacta con nuestro soporte.</p>
           <a
             href="https://t.me/KaelSoporte"
             target="_blank"
