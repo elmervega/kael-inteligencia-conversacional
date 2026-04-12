@@ -19,6 +19,10 @@ jobs:
           script: |
             set -eo pipefail
             umask 0022
+
+            echo "→ [0/7] Fixing directory ownership"
+            sudo /usr/local/bin/fix-kael-ownership
+
             cd /var/www/kael-web
 
             echo "→ [1/7] Syncing code from GitHub"
