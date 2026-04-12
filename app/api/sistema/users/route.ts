@@ -17,6 +17,7 @@ export async function GET() {
           emailVerified: true,
           createdAt: true,
           plan: true,
+          blocked: true,
         },
       }),
     ])
@@ -61,4 +62,30 @@ export async function DELETE(req: NextRequest) {
   console.log(`[sistema] Usuario eliminado: ${user.email} (${userId})`)
 
   return NextResponse.json({ ok: true, deleted: { email: user.email, name: user.name } })
+}
+
+export async function PATCH(req: NextRequest) {
+  let body: { userId?: string; blocked?: boolean }
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: 'Solicitud inválida' }, { status: 400 })
+  }
+
+  const { userId, blocked } = body
+  if (!userId || typeof userId !== 'string' || typeof blocked !== 'boolean') {
+    return NextResponse.json({ error: 'userId y blocked requeridos' }, { status: 400 })
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, name: true } })
+  if (!user) {
+    return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 })
+  }
+
+  await prisma.user.update({ where: { id: userId }, data: { blocked } })
+
+  const action = blocked ? 'bloqueado' : 'desbloqueado'
+  console.log(`[sistema] Usuario ${action}: ${user.email} (${userId})`)
+
+  return NextResponse.json({ ok: true, blocked, user: { email: user.email, name: user.name } })
 }

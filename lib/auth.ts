@@ -13,6 +13,10 @@ class LoginRateLimitError extends CredentialsSignin {
   code = 'rate_limit' as const
 }
 
+class UserBlockedError extends CredentialsSignin {
+  code = 'user_blocked' as const
+}
+
 // Rate limiting: 10 intentos por IP cada 15 minutos
 const loginAttempts = new Map<string, { count: number; resetAt: number }>()
 
@@ -73,6 +77,11 @@ export const {
         )
 
         if (!passwordMatch) return null
+
+        if (user.blocked) {
+          console.warn(`[Security] Login attempt by blocked user: ${user.email}`)
+          throw new UserBlockedError()
+        }
 
         if (!user.emailVerified) {
           throw new EmailNotVerifiedError()

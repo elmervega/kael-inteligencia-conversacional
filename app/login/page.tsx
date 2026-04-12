@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 
-type ErrorType = 'credentials' | 'rate_limit' | 'server' | 'email_not_verified' | null
+type ErrorType = 'credentials' | 'rate_limit' | 'server' | 'email_not_verified' | 'user_blocked' | null
 
 function EyeIcon({ open }: { open: boolean }) {
   return open ? (
@@ -35,7 +35,8 @@ function LoginForm() {
     credentials: 'Email o contraseña incorrectos. Verifica tus datos.',
     rate_limit: `Demasiados intentos.${retryAfter ? ` Intenta de nuevo en ${Math.ceil(retryAfter / 60)} minuto${retryAfter > 60 ? 's' : ''}.` : ' Intenta más tarde.'}`,
     server: 'Error del servidor. Intenta de nuevo en unos momentos.',
-    email_not_verified: 'Debes confirmar tu email antes de iniciar sesión. Revisa tu bandeja de entrada.'
+    email_not_verified: 'Debes confirmar tu email antes de iniciar sesión. Revisa tu bandeja de entrada.',
+    user_blocked: 'Tu cuenta ha sido suspendida. Contacta al soporte para más información.'
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -66,8 +67,14 @@ function LoginForm() {
         const isRateLimit =
           result.error === 'rate_limit' ||
           returnUrl.includes('code=rate_limit')
+        const isBlocked =
+          result.error === 'user_blocked' ||
+          returnUrl.includes('code=user_blocked') ||
+          returnUrl.includes('error=user_blocked')
 
-        if (isEmailNotVerified) {
+        if (isBlocked) {
+          setErrorType('user_blocked')
+        } else if (isEmailNotVerified) {
           setErrorType('email_not_verified')
         } else if (isRateLimit) {
           setErrorType('rate_limit')

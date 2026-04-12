@@ -17,6 +17,7 @@ model User {
   telegramChatId String?
   createdAt      DateTime  @default(now())
   emailVerified  DateTime?
+  blocked        Boolean   @default(false)
 
   accounts    Account[]
   sessions    Session[]

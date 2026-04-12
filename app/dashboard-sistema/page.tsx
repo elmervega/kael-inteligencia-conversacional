@@ -34,6 +34,7 @@ interface UserRow {
   emailVerified: string | null
   createdAt: string
   plan: string | null
+  blocked: boolean
 }
 
 interface UsersData {
@@ -64,8 +65,9 @@ export default function DashboardSistema() {
   const [logsUpdate, setLogsUpdate] = useState<Date | null>(null)
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null)
 
-  // Delete state
+  // Delete / block state
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [blockingId, setBlockingId] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<UserRow | null>(null)
 
   /* ── Fetchers ── */
@@ -126,12 +128,24 @@ export default function DashboardSistema() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: confirmDelete.id }),
       })
-      if (res.ok) {
-        await fetchUsers()
-      }
+      if (res.ok) await fetchUsers()
     } finally {
       setDeletingId(null)
       setConfirmDelete(null)
+    }
+  }
+
+  const handleToggleBlock = async (u: UserRow) => {
+    setBlockingId(u.id)
+    try {
+      const res = await fetch('/api/sistema/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: u.id, blocked: !u.blocked }),
+      })
+      if (res.ok) await fetchUsers()
+    } finally {
+      setBlockingId(null)
     }
   }
 
@@ -328,22 +342,33 @@ export default function DashboardSistema() {
                 {users.recent.map(u => (
                   <div
                     key={u.id}
-                    className="flex items-center gap-3 bg-zinc-900/60 border border-zinc-800 rounded-xl px-4 py-3 hover:border-zinc-700 transition group"
+                    className={`flex items-center gap-3 border rounded-xl px-4 py-3 transition ${
+                      u.blocked
+                        ? 'bg-red-950/20 border-red-900/40'
+                        : 'bg-zinc-900/60 border-zinc-800 hover:border-zinc-700'
+                    }`}
                   >
                     {/* Avatar */}
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-xs font-bold text-white shrink-0">
-                      {(u.name?.[0] ?? u.email?.[0] ?? '?').toUpperCase()}
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${
+                      u.blocked ? 'bg-red-900/60' : 'bg-gradient-to-br from-indigo-500 to-violet-600'
+                    }`}>
+                      {u.blocked ? '🚫' : (u.name?.[0] ?? u.email?.[0] ?? '?').toUpperCase()}
                     </div>
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-medium text-zinc-200">{u.name ?? 'Sin nombre'}</span>
-                        {u.emailVerified ? (
+                        <span className={`text-sm font-medium ${u.blocked ? 'text-zinc-500 line-through' : 'text-zinc-200'}`}>
+                          {u.name ?? 'Sin nombre'}
+                        </span>
+                        {u.blocked && (
+                          <span className="text-[0.6rem] bg-red-900/30 border border-red-900/50 text-red-400 px-1.5 py-0.5 rounded">⛔ Bloqueado</span>
+                        )}
+                        {!u.blocked && (u.emailVerified ? (
                           <span className="text-[0.6rem] bg-green-900/30 border border-green-900/50 text-green-400 px-1.5 py-0.5 rounded">✓ Verificado</span>
                         ) : (
                           <span className="text-[0.6rem] bg-yellow-900/30 border border-yellow-900/50 text-yellow-400 px-1.5 py-0.5 rounded">⏳ Sin verificar</span>
-                        )}
+                        ))}
                         <span className="text-[0.6rem] text-zinc-600 capitalize bg-zinc-800 px-1.5 py-0.5 rounded">{u.plan ?? 'free'}</span>
                       </div>
                       <div className="flex items-center gap-3 mt-0.5 flex-wrap">
@@ -353,18 +378,38 @@ export default function DashboardSistema() {
                       </div>
                     </div>
 
-                    {/* Delete button */}
-                    <button
-                      onClick={() => setConfirmDelete(u)}
-                      className="shrink-0 p-2 text-zinc-700 hover:text-red-400 hover:bg-red-950/30 rounded-lg transition opacity-0 group-hover:opacity-100"
-                      title="Eliminar usuario"
-                    >
-                      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M2 4h11M6 4V2.5a.5.5 0 01.5-.5h2a.5.5 0 01.5.5V4M5 4v8.5a.5.5 0 00.5.5h4a.5.5 0 00.5-.5V4"/>
-                        <line x1="6.5" y1="7" x2="6.5" y2="11"/>
-                        <line x1="8.5" y1="7" x2="8.5" y2="11"/>
-                      </svg>
-                    </button>
+                    {/* Action buttons — always visible */}
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => handleToggleBlock(u)}
+                        disabled={blockingId === u.id}
+                        className={`p-2 rounded-lg transition text-xs disabled:opacity-40 ${
+                          u.blocked
+                            ? 'text-green-500 hover:bg-green-950/30 hover:text-green-400'
+                            : 'text-orange-500 hover:bg-orange-950/30 hover:text-orange-400'
+                        }`}
+                        title={u.blocked ? 'Desbloquear usuario' : 'Bloquear usuario'}
+                      >
+                        {blockingId === u.id ? (
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="animate-spin"><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeOpacity=".3"/><path d="M21 12a9 9 0 00-9-9"/></svg>
+                        ) : u.blocked ? (
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                        ) : (
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 019.9-1"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => setConfirmDelete(u)}
+                        className="p-2 text-red-600 hover:text-red-400 hover:bg-red-950/30 rounded-lg transition"
+                        title="Eliminar usuario"
+                      >
+                        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M2 4h11M6 4V2.5a.5.5 0 01.5-.5h2a.5.5 0 01.5.5V4M5 4v8.5a.5.5 0 00.5.5h4a.5.5 0 00.5-.5V4"/>
+                          <line x1="6.5" y1="7" x2="6.5" y2="11"/>
+                          <line x1="8.5" y1="7" x2="8.5" y2="11"/>
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
