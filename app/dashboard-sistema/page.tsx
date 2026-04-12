@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 
+/* ─── Types ──────────────────────────────────────────── */
 interface Log {
   timestamp: string
   level: 'error' | 'warning' | 'info'
@@ -20,41 +21,54 @@ interface ServiceStatus {
   timestamp: string
   services: {
     database?: { status: string; description: string }
-    redis?: { status: string; description: string; stats?: { connected_clients: string; total_commands: string } }
+    redis?: { status: string; description: string }
   }
   uptime?: string
+}
+
+interface UserRow {
+  id: string
+  name: string | null
+  email: string | null
+  phone: string | null
+  emailVerified: string | null
+  createdAt: string
+  plan: string | null
 }
 
 interface UsersData {
   total: number
   verified: number
   pendingVerification: number
-  recent: Array<{
-    id: string
-    name: string | null
-    email: string | null
-    phone: string | null
-    emailVerified: string | null
-    createdAt: string
-    plan: string | null
-  }>
+  recent: UserRow[]
 }
 
+type Tab = 'overview' | 'clients' | 'logs'
 type FilterLevel = 'all' | 'error' | 'warning' | 'info'
 
+/* ─── Main component ─────────────────────────────────── */
 export default function DashboardSistema() {
   const router = useRouter()
+  const [tab, setTab] = useState<Tab>('overview')
+
+  // Data state
   const [services, setServices] = useState<ServiceStatus | null>(null)
   const [logs, setLogs] = useState<Log[]>([])
   const [security, setSecurity] = useState<SecurityData | null>(null)
   const [users, setUsers] = useState<UsersData | null>(null)
+
+  // UI state
   const [logsError, setLogsError] = useState(false)
   const [securityError, setSecurityError] = useState(false)
   const [filter, setFilter] = useState<FilterLevel>('all')
   const [logsUpdate, setLogsUpdate] = useState<Date | null>(null)
-  const [securityUpdate, setSecurityUpdate] = useState<Date | null>(null)
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null)
 
+  // Delete state
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<UserRow | null>(null)
+
+  /* ── Fetchers ── */
   const fetchServices = useCallback(async () => {
     try {
       const res = await fetch('/api/system/status')
@@ -80,7 +94,6 @@ export default function DashboardSistema() {
       const res = await fetch('/api/sistema/security')
       if (!res.ok) throw new Error()
       setSecurity(await res.json())
-      setSecurityUpdate(new Date())
       setSecurityError(false)
     } catch {
       setSecurityError(true)
@@ -95,10 +108,7 @@ export default function DashboardSistema() {
   }, [])
 
   useEffect(() => {
-    fetchServices()
-    fetchLogs()
-    fetchSecurity()
-    fetchUsers()
+    fetchServices(); fetchLogs(); fetchSecurity(); fetchUsers()
     const t1 = setInterval(fetchServices, 30000)
     const t2 = setInterval(fetchLogs, 15000)
     const t3 = setInterval(fetchSecurity, 30000)
@@ -106,53 +116,75 @@ export default function DashboardSistema() {
     return () => { clearInterval(t1); clearInterval(t2); clearInterval(t3); clearInterval(t4) }
   }, [fetchServices, fetchLogs, fetchSecurity, fetchUsers])
 
+  /* ── Delete user ── */
+  const handleDeleteConfirm = async () => {
+    if (!confirmDelete) return
+    setDeletingId(confirmDelete.id)
+    try {
+      const res = await fetch('/api/sistema/users', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: confirmDelete.id }),
+      })
+      if (res.ok) {
+        await fetchUsers()
+      }
+    } finally {
+      setDeletingId(null)
+      setConfirmDelete(null)
+    }
+  }
+
   const handleLogout = async () => {
     await fetch('/api/sistema/auth', { method: 'DELETE' })
     router.push('/sistema/login')
   }
 
+  /* ── Helpers ── */
   const filteredLogs = filter === 'all' ? logs : logs.filter(l => l.level === filter)
 
-  const levelRowClass = (level: string) => ({
+  const levelRowClass = (l: string) => ({
     error: 'bg-red-950/30 border-red-900/40 hover:bg-red-950/50',
     warning: 'bg-yellow-950/30 border-yellow-900/40 hover:bg-yellow-950/50',
     info: 'bg-zinc-900/60 border-zinc-800 hover:bg-zinc-900',
-  }[level] ?? 'bg-zinc-900/60 border-zinc-800')
+  }[l] ?? 'bg-zinc-900/60 border-zinc-800')
 
-  const levelTextClass = (level: string) => ({
-    error: 'text-red-300',
-    warning: 'text-yellow-200',
-    info: 'text-zinc-300',
-  }[level] ?? 'text-zinc-300')
+  const levelTextClass = (l: string) => ({
+    error: 'text-red-300', warning: 'text-yellow-200', info: 'text-zinc-300',
+  }[l] ?? 'text-zinc-300')
 
-  const levelDot = (level: string) => ({
-    error: '🔴',
-    warning: '🟡',
-    info: '⚪',
-  }[level] ?? '⚪')
+  const levelDot = (l: string) => ({ error: '🔴', warning: '🟡', info: '⚪' }[l] ?? '⚪')
 
   const filterBtnClass = (f: FilterLevel) => {
     const active = filter === f
     const base = 'px-3 py-1 text-xs rounded-full border transition'
-    const styles: Record<FilterLevel, string> = {
+    const s: Record<FilterLevel, string> = {
       all: active ? 'bg-zinc-700 border-zinc-500 text-white' : 'border-zinc-800 text-zinc-500 hover:border-zinc-600',
       error: active ? 'bg-red-900/60 border-red-700 text-red-300' : 'border-zinc-800 text-zinc-500 hover:border-zinc-600',
       warning: active ? 'bg-yellow-900/60 border-yellow-700 text-yellow-300' : 'border-zinc-800 text-zinc-500 hover:border-zinc-600',
       info: active ? 'bg-zinc-700 border-zinc-500 text-zinc-200' : 'border-zinc-800 text-zinc-500 hover:border-zinc-600',
     }
-    return `${base} ${styles[f]}`
+    return `${base} ${s[f]}`
   }
 
   const countOf = (l: FilterLevel) => l === 'all' ? logs.length : logs.filter(x => x.level === l).length
 
-  const formatDate = (iso: string) => {
-    try {
-      return new Date(iso).toLocaleString('es', { dateStyle: 'short', timeStyle: 'short' })
-    } catch { return iso }
+  const fmt = (iso: string) => {
+    try { return new Date(iso).toLocaleString('es', { dateStyle: 'short', timeStyle: 'short' }) }
+    catch { return iso }
   }
 
+  const tabClass = (t: Tab) =>
+    `px-4 py-2 text-sm font-medium border-b-2 transition whitespace-nowrap ${
+      tab === t
+        ? 'border-white text-white'
+        : 'border-transparent text-zinc-500 hover:text-zinc-300'
+    }`
+
+  /* ─── Render ─────────────────────────────────────────── */
   return (
     <div className="min-h-screen bg-[#050505] text-white">
+
       {/* Header */}
       <div className="border-b border-zinc-800/60 px-6 py-4 flex items-center justify-between">
         <div>
@@ -167,218 +199,258 @@ export default function DashboardSistema() {
         </button>
       </div>
 
+      {/* Tabs */}
+      <div className="border-b border-zinc-800/60 px-6 flex gap-1 overflow-x-auto">
+        <button className={tabClass('overview')} onClick={() => setTab('overview')}>Resumen</button>
+        <button className={tabClass('clients')} onClick={() => setTab('clients')}>
+          Clientes
+          {users && <span className="ml-1.5 text-[0.65rem] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded-full">{users.total}</span>}
+        </button>
+        <button className={tabClass('logs')} onClick={() => setTab('logs')}>
+          Logs
+          {logs.filter(l => l.level === 'error').length > 0 && (
+            <span className="ml-1.5 text-[0.65rem] bg-red-900/60 text-red-300 px-1.5 py-0.5 rounded-full">
+              {logs.filter(l => l.level === 'error').length}
+            </span>
+          )}
+        </button>
+      </div>
+
       <div className="max-w-6xl mx-auto p-6 space-y-5">
 
-        {/* Services row */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4">
-            <p className="text-[0.68rem] text-zinc-500 uppercase tracking-wider mb-2">🗄️ PostgreSQL</p>
-            <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${
-              services?.services.database?.status?.includes('✅')
-                ? 'bg-green-900/30 text-green-400 border-green-800'
-                : 'bg-red-900/30 text-red-400 border-red-800'
-            }`}>
-              {services?.services.database?.status ?? '—'}
-            </span>
-            <p className="text-xs text-zinc-500 mt-2">{services?.services.database?.description ?? 'Cargando...'}</p>
-          </div>
-          <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4">
-            <p className="text-[0.68rem] text-zinc-500 uppercase tracking-wider mb-2">⚡ Redis</p>
-            <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${
-              services?.services.redis?.status?.includes('✅')
-                ? 'bg-green-900/30 text-green-400 border-green-800'
-                : 'bg-yellow-900/30 text-yellow-400 border-yellow-800'
-            }`}>
-              {services?.services.redis?.status ?? '—'}
-            </span>
-            <p className="text-xs text-zinc-500 mt-2">{services?.services.redis?.description ?? 'Cargando...'}</p>
-          </div>
-          <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4">
-            <p className="text-[0.68rem] text-zinc-500 uppercase tracking-wider mb-2">⏱️ Uptime</p>
-            <p className="text-xs text-zinc-300 font-mono mt-3">{services?.uptime ?? 'Cargando...'}</p>
-          </div>
-        </div>
-
-        {/* Users section */}
-        <div className="bg-zinc-900/30 border border-zinc-800 rounded-2xl p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-white">👥 Usuarios Registrados</h2>
-            <span className="text-[0.68rem] text-zinc-600">Refresca cada 60s</span>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3 mb-5">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-center">
-              <p className="text-2xl font-bold text-white">{users?.total ?? '—'}</p>
-              <p className="text-[0.65rem] text-zinc-500 mt-1">Total</p>
+        {/* ─── TAB: OVERVIEW ─── */}
+        {tab === 'overview' && (
+          <>
+            {/* Services */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4">
+                <p className="text-[0.68rem] text-zinc-500 uppercase tracking-wider mb-2">🗄️ PostgreSQL</p>
+                <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${
+                  services?.services.database?.status?.includes('✅')
+                    ? 'bg-green-900/30 text-green-400 border-green-800'
+                    : 'bg-red-900/30 text-red-400 border-red-800'
+                }`}>
+                  {services?.services.database?.status ?? '—'}
+                </span>
+                <p className="text-xs text-zinc-500 mt-2">{services?.services.database?.description ?? 'Cargando...'}</p>
+              </div>
+              <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4">
+                <p className="text-[0.68rem] text-zinc-500 uppercase tracking-wider mb-2">⚡ Redis</p>
+                <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${
+                  services?.services.redis?.status?.includes('✅')
+                    ? 'bg-green-900/30 text-green-400 border-green-800'
+                    : 'bg-yellow-900/30 text-yellow-400 border-yellow-800'
+                }`}>
+                  {services?.services.redis?.status ?? '—'}
+                </span>
+                <p className="text-xs text-zinc-500 mt-2">{services?.services.redis?.description ?? 'Cargando...'}</p>
+              </div>
+              <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4">
+                <p className="text-[0.68rem] text-zinc-500 uppercase tracking-wider mb-2">⏱️ Uptime</p>
+                <p className="text-xs text-zinc-300 font-mono mt-3">{services?.uptime ?? 'Cargando...'}</p>
+              </div>
             </div>
-            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-center">
-              <p className="text-2xl font-bold text-green-400">{users?.verified ?? '—'}</p>
-              <p className="text-[0.65rem] text-zinc-500 mt-1">Verificados</p>
-            </div>
-            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-center">
-              <p className={`text-2xl font-bold ${(users?.pendingVerification ?? 0) > 0 ? 'text-yellow-400' : 'text-zinc-400'}`}>
-                {users?.pendingVerification ?? '—'}
-              </p>
-              <p className="text-[0.65rem] text-zinc-500 mt-1">Sin verificar</p>
-            </div>
-          </div>
 
-          {users && users.recent.length > 0 && (
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="text-zinc-600 border-b border-zinc-800">
-                    <th className="text-left pb-2 font-medium">Nombre</th>
-                    <th className="text-left pb-2 font-medium">Email / Teléfono</th>
-                    <th className="text-left pb-2 font-medium">Registro</th>
-                    <th className="text-left pb-2 font-medium">Estado</th>
-                    <th className="text-left pb-2 font-medium">Plan</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-900">
-                  {users.recent.map(u => (
-                    <tr key={u.id} className="hover:bg-zinc-900/40 transition">
-                      <td className="py-2 pr-3 text-zinc-300 font-medium">{u.name ?? '—'}</td>
-                      <td className="py-2 pr-3">
-                        <div className="text-zinc-400">{u.email ?? '—'}</div>
-                        {u.phone && <div className="text-zinc-600">{u.phone}</div>}
-                      </td>
-                      <td className="py-2 pr-3 text-zinc-500 whitespace-nowrap">{formatDate(u.createdAt)}</td>
-                      <td className="py-2 pr-3">
-                        {u.emailVerified ? (
-                          <span className="text-green-400 bg-green-900/20 border border-green-900/40 px-1.5 py-0.5 rounded text-[0.65rem]">✓ Verificado</span>
-                        ) : (
-                          <span className="text-yellow-400 bg-yellow-900/20 border border-yellow-900/40 px-1.5 py-0.5 rounded text-[0.65rem]">⏳ Pendiente</span>
-                        )}
-                      </td>
-                      <td className="py-2 text-zinc-500 capitalize">{u.plan ?? 'free'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        {/* Security section */}
-        <div className="bg-zinc-900/30 border border-zinc-800 rounded-2xl p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-sm font-semibold text-white">🔒 Eventos de Seguridad (24h)</h2>
-              {securityUpdate && (
-                <p className="text-[0.68rem] text-zinc-600 mt-0.5">
-                  Actualizado {securityUpdate.toLocaleTimeString('es')} · refresca cada 30s
+            {/* Quick user stats */}
+            <div className="grid grid-cols-3 gap-4">
+              <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 text-center">
+                <p className="text-3xl font-bold text-white">{users?.total ?? '—'}</p>
+                <p className="text-[0.68rem] text-zinc-500 mt-1">Usuarios registrados</p>
+              </div>
+              <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 text-center">
+                <p className="text-3xl font-bold text-green-400">{users?.verified ?? '—'}</p>
+                <p className="text-[0.68rem] text-zinc-500 mt-1">Email verificado</p>
+              </div>
+              <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 text-center">
+                <p className={`text-3xl font-bold ${(users?.pendingVerification ?? 0) > 0 ? 'text-yellow-400' : 'text-zinc-400'}`}>
+                  {users?.pendingVerification ?? '—'}
                 </p>
+                <p className="text-[0.68rem] text-zinc-500 mt-1">Sin verificar</p>
+              </div>
+            </div>
+
+            {/* Security */}
+            <div className="bg-zinc-900/30 border border-zinc-800 rounded-2xl p-5">
+              <h2 className="text-sm font-semibold text-white mb-4">🔒 Eventos de Seguridad (24h)</h2>
+              {securityError ? (
+                <p className="text-yellow-500 text-xs">No se pudo obtener datos</p>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[
+                    { label: 'Logins fallidos', value: security?.failedLogins.count24h, color: 'text-red-400' },
+                    { label: 'IPs bloqueadas', value: security?.bannedIPs.length, color: 'text-orange-400' },
+                    { label: 'Rate limit hits', value: security?.rateLimitHits.count24h, color: 'text-yellow-400' },
+                    { label: 'Errores de sesión', value: security?.dashboardAuthErrors.count24h, color: 'text-zinc-400' },
+                  ].map(({ label, value, color }) => (
+                    <div key={label} className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-center">
+                      <p className={`text-2xl font-bold ${color}`}>{value ?? '—'}</p>
+                      <p className="text-[0.65rem] text-zinc-500 mt-1">{label}</p>
+                    </div>
+                  ))}
+                </div>
               )}
-            </div>
-          </div>
-
-          {securityError ? (
-            <p className="text-yellow-500 text-xs">No se pudo obtener datos de seguridad</p>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-              <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold text-red-400">{security?.failedLogins.count24h ?? '—'}</p>
-                <p className="text-[0.65rem] text-zinc-500 mt-1">Logins fallidos</p>
-              </div>
-              <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold text-orange-400">{security?.bannedIPs.length ?? '—'}</p>
-                <p className="text-[0.65rem] text-zinc-500 mt-1">IPs bloqueadas</p>
-              </div>
-              <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold text-yellow-400">{security?.rateLimitHits.count24h ?? '—'}</p>
-                <p className="text-[0.65rem] text-zinc-500 mt-1">Rate limit hits</p>
-              </div>
-              <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold text-zinc-400">{security?.dashboardAuthErrors.count24h ?? '—'}</p>
-                <p className="text-[0.65rem] text-zinc-500 mt-1">Errores de sesión</p>
-              </div>
-            </div>
-          )}
-
-          {security && security.bannedIPs.length > 0 && (
-            <div className="mt-3">
-              <p className="text-[0.68rem] text-zinc-500 uppercase tracking-wider mb-2">IPs bloqueadas por fail2ban</p>
-              <div className="flex flex-wrap gap-1.5">
-                {security.bannedIPs.map(ip => (
-                  <span key={ip} className="text-xs font-mono bg-red-900/20 border border-red-900/40 text-red-300 px-2 py-0.5 rounded">
-                    {ip}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {security && security.failedLogins.recent.length > 0 && (
-            <div className="mt-4">
-              <p className="text-[0.68rem] text-zinc-500 uppercase tracking-wider mb-2">Últimos intentos fallidos</p>
-              <div className="space-y-1">
-                {security.failedLogins.recent.slice(-5).reverse().map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-2 text-xs bg-red-950/20 border border-red-900/30 rounded px-3 py-1.5">
-                    <span className="text-red-500">⚠</span>
-                    <span className="text-zinc-500 font-mono shrink-0">{item.timestamp.slice(0, 19)}</span>
-                    <span className="text-red-300">{item.type}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Logs section */}
-        <div className="bg-zinc-900/30 border border-zinc-800 rounded-2xl p-5">
-          <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-            <div>
-              <h2 className="text-sm font-semibold text-white">📋 Logs de Aplicación</h2>
-              <p className="text-[0.68rem] text-zinc-600 mt-0.5">
-                {logsUpdate
-                  ? `Actualizado ${logsUpdate.toLocaleTimeString('es')} · refresca cada 15s`
-                  : 'Cargando...'}
-              </p>
-            </div>
-            <div className="flex gap-1.5 flex-wrap">
-              {(['all', 'error', 'warning', 'info'] as FilterLevel[]).map(f => (
-                <button
-                  key={f}
-                  onClick={() => setFilter(f)}
-                  className={filterBtnClass(f)}
-                >
-                  {f === 'all' ? 'Todos' : f.charAt(0).toUpperCase() + f.slice(1)}
-                  <span className="ml-1 opacity-60">({countOf(f)})</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {logsError ? (
-            <p className="text-red-400 text-sm py-6 text-center">Error al cargar logs. Reintentando...</p>
-          ) : (
-            <div className="space-y-1 max-h-[480px] overflow-y-auto pr-1">
-              {filteredLogs.length === 0 ? (
-                <p className="text-zinc-600 text-sm py-6 text-center">Sin logs con este filtro</p>
-              ) : filteredLogs.map((log, idx) => (
-                <div
-                  key={idx}
-                  onClick={() => setExpandedIdx(expandedIdx === idx ? null : idx)}
-                  className={`border rounded-lg px-3 py-2 cursor-pointer transition ${levelRowClass(log.level)}`}
-                >
-                  <div className="flex items-start gap-2">
-                    <span className="text-[0.65rem] mt-0.5 shrink-0">{levelDot(log.level)}</span>
-                    <span className="text-[0.65rem] text-zinc-500 font-mono shrink-0 mt-0.5">
-                      {log.timestamp.slice(0, 19)}
-                    </span>
-                    <span className={`text-xs leading-relaxed ${levelTextClass(log.level)} ${
-                      expandedIdx === idx ? '' : 'line-clamp-1'
-                    }`}>
-                      {log.message}
-                    </span>
+              {security && security.bannedIPs.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-[0.68rem] text-zinc-500 uppercase tracking-wider mb-2">IPs bloqueadas por fail2ban</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {security.bannedIPs.map(ip => (
+                      <span key={ip} className="text-xs font-mono bg-red-900/20 border border-red-900/40 text-red-300 px-2 py-0.5 rounded">{ip}</span>
+                    ))}
                   </div>
                 </div>
-              ))}
+              )}
             </div>
-          )}
-        </div>
+          </>
+        )}
+
+        {/* ─── TAB: CLIENTS ─── */}
+        {tab === 'clients' && (
+          <div className="bg-zinc-900/30 border border-zinc-800 rounded-2xl p-5">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h2 className="text-sm font-semibold text-white">👥 Clientes Registrados</h2>
+                <p className="text-[0.68rem] text-zinc-600 mt-0.5">
+                  {users ? `${users.total} total · ${users.verified} verificados · ${users.pendingVerification} pendientes` : 'Cargando...'}
+                </p>
+              </div>
+              <button
+                onClick={fetchUsers}
+                className="text-xs text-zinc-500 hover:text-zinc-300 border border-zinc-800 rounded-lg px-3 py-1.5 transition hover:bg-zinc-900"
+              >
+                Actualizar
+              </button>
+            </div>
+
+            {!users || users.recent.length === 0 ? (
+              <p className="text-zinc-600 text-sm text-center py-8">Sin usuarios registrados</p>
+            ) : (
+              <div className="space-y-2">
+                {users.recent.map(u => (
+                  <div
+                    key={u.id}
+                    className="flex items-center gap-3 bg-zinc-900/60 border border-zinc-800 rounded-xl px-4 py-3 hover:border-zinc-700 transition group"
+                  >
+                    {/* Avatar */}
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-xs font-bold text-white shrink-0">
+                      {(u.name?.[0] ?? u.email?.[0] ?? '?').toUpperCase()}
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-medium text-zinc-200">{u.name ?? 'Sin nombre'}</span>
+                        {u.emailVerified ? (
+                          <span className="text-[0.6rem] bg-green-900/30 border border-green-900/50 text-green-400 px-1.5 py-0.5 rounded">✓ Verificado</span>
+                        ) : (
+                          <span className="text-[0.6rem] bg-yellow-900/30 border border-yellow-900/50 text-yellow-400 px-1.5 py-0.5 rounded">⏳ Sin verificar</span>
+                        )}
+                        <span className="text-[0.6rem] text-zinc-600 capitalize bg-zinc-800 px-1.5 py-0.5 rounded">{u.plan ?? 'free'}</span>
+                      </div>
+                      <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                        <span className="text-xs text-zinc-500">{u.email ?? '—'}</span>
+                        {u.phone && <span className="text-xs text-zinc-600">{u.phone}</span>}
+                        <span className="text-xs text-zinc-700">{fmt(u.createdAt)}</span>
+                      </div>
+                    </div>
+
+                    {/* Delete button */}
+                    <button
+                      onClick={() => setConfirmDelete(u)}
+                      className="shrink-0 p-2 text-zinc-700 hover:text-red-400 hover:bg-red-950/30 rounded-lg transition opacity-0 group-hover:opacity-100"
+                      title="Eliminar usuario"
+                    >
+                      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M2 4h11M6 4V2.5a.5.5 0 01.5-.5h2a.5.5 0 01.5.5V4M5 4v8.5a.5.5 0 00.5.5h4a.5.5 0 00.5-.5V4"/>
+                        <line x1="6.5" y1="7" x2="6.5" y2="11"/>
+                        <line x1="8.5" y1="7" x2="8.5" y2="11"/>
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ─── TAB: LOGS ─── */}
+        {tab === 'logs' && (
+          <div className="bg-zinc-900/30 border border-zinc-800 rounded-2xl p-5">
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-white">📋 Logs de Aplicación</h2>
+                <p className="text-[0.68rem] text-zinc-600 mt-0.5">
+                  {logsUpdate ? `Actualizado ${logsUpdate.toLocaleTimeString('es')} · refresca cada 15s` : 'Cargando...'}
+                </p>
+              </div>
+              <div className="flex gap-1.5 flex-wrap">
+                {(['all', 'error', 'warning', 'info'] as FilterLevel[]).map(f => (
+                  <button key={f} onClick={() => setFilter(f)} className={filterBtnClass(f)}>
+                    {f === 'all' ? 'Todos' : f.charAt(0).toUpperCase() + f.slice(1)}
+                    <span className="ml-1 opacity-60">({countOf(f)})</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {logsError ? (
+              <p className="text-red-400 text-sm py-6 text-center">Error al cargar logs. Reintentando...</p>
+            ) : (
+              <div className="space-y-1 max-h-[520px] overflow-y-auto pr-1">
+                {filteredLogs.length === 0 ? (
+                  <p className="text-zinc-600 text-sm py-6 text-center">Sin logs con este filtro</p>
+                ) : filteredLogs.map((log, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => setExpandedIdx(expandedIdx === idx ? null : idx)}
+                    className={`border rounded-lg px-3 py-2 cursor-pointer transition ${levelRowClass(log.level)}`}
+                  >
+                    <div className="flex items-start gap-2">
+                      <span className="text-[0.65rem] mt-0.5 shrink-0">{levelDot(log.level)}</span>
+                      <span className="text-[0.65rem] text-zinc-500 font-mono shrink-0 mt-0.5">{log.timestamp.slice(0, 19)}</span>
+                      <span className={`text-xs leading-relaxed ${levelTextClass(log.level)} ${expandedIdx === idx ? '' : 'line-clamp-1'}`}>
+                        {log.message}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* ─── Modal confirmar eliminación ─── */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+            <h3 className="text-base font-bold text-white mb-2">Eliminar usuario</h3>
+            <p className="text-sm text-zinc-400 mb-1">
+              ¿Seguro que quieres eliminar permanentemente a:
+            </p>
+            <div className="bg-zinc-800/60 rounded-lg px-4 py-3 my-3">
+              <p className="text-sm font-medium text-zinc-200">{confirmDelete.name ?? 'Sin nombre'}</p>
+              <p className="text-xs text-zinc-500">{confirmDelete.email}</p>
+              {confirmDelete.phone && <p className="text-xs text-zinc-600">{confirmDelete.phone}</p>}
+            </div>
+            <p className="text-xs text-red-400 mb-5">Esta acción no se puede deshacer. Se eliminarán también sus tokens de verificación.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                className="flex-1 py-2.5 text-sm border border-zinc-700 text-zinc-300 rounded-lg hover:bg-zinc-800 transition"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                disabled={deletingId === confirmDelete.id}
+                className="flex-1 py-2.5 text-sm bg-red-600 hover:bg-red-500 text-white rounded-lg transition disabled:opacity-50 font-medium"
+              >
+                {deletingId === confirmDelete.id ? 'Eliminando...' : 'Sí, eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

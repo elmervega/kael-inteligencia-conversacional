@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
 export async function GET() {
@@ -8,7 +8,7 @@ export async function GET() {
       prisma.user.count({ where: { emailVerified: { not: null } } }),
       prisma.user.findMany({
         orderBy: { createdAt: 'desc' },
-        take: 10,
+        take: 50,
         select: {
           id: true,
           name: true,
@@ -21,12 +21,10 @@ export async function GET() {
       }),
     ])
 
-    const pendingVerification = total - verified
-
     return NextResponse.json({
       total,
       verified,
-      pendingVerification,
+      pendingVerification: total - verified,
       recent,
     })
   } catch {
@@ -35,4 +33,32 @@ export async function GET() {
       { status: 500 }
     )
   }
+}
+
+export async function DELETE(req: NextRequest) {
+  let body: { userId?: string }
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: 'Solicitud inválida' }, { status: 400 })
+  }
+
+  const { userId } = body
+  if (!userId || typeof userId !== 'string') {
+    return NextResponse.json({ error: 'userId requerido' }, { status: 400 })
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, name: true } })
+  if (!user) {
+    return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 })
+  }
+
+  // Eliminar tokens y luego el usuario
+  await prisma.emailVerificationToken.deleteMany({ where: { email: user.email ?? '' } })
+  await prisma.passwordResetToken.deleteMany({ where: { email: user.email ?? '' } })
+  await prisma.user.delete({ where: { id: userId } })
+
+  console.log(`[sistema] Usuario eliminado: ${user.email} (${userId})`)
+
+  return NextResponse.json({ ok: true, deleted: { email: user.email, name: user.name } })
 }
