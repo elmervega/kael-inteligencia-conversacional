@@ -71,7 +71,7 @@ function EcosistemaKael() {
             ¿Encontraste un bug o necesitas ayuda? Habla directamente con nosotros por Telegram.
           </p>
           <a
-            href="https://t.me/KaelSoporte"
+            href="https://t.me/KaelConsciente_bot"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-[#0088cc] rounded-lg hover:bg-[#0099dd] transition-all duration-200"
