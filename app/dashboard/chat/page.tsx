@@ -118,7 +118,7 @@ export default function ChatPage() {
   // Loading de sesión
   if (status === "loading") {
     return (
-      <div className="flex-1 flex items-center justify-center" style={{ backgroundColor: "#000318" }}>
+      <div className="flex-1 flex items-center justify-center h-[calc(100vh-56px)] md:h-screen" style={{ backgroundColor: "#000318" }}>
         <div className="flex gap-2">
           {[0, 150, 300].map((delay) => (
             <div
@@ -136,8 +136,8 @@ export default function ChatPage() {
 
   return (
     <div
-      className="flex flex-col"
-      style={{ height: "calc(100vh - 0px)", backgroundColor: "#000318" }}
+      className="flex flex-col h-[calc(100vh-56px)] md:h-screen"
+      style={{ backgroundColor: "#000318" }}
     >
       {/* Header */}
       <div className="bg-[#000318]/80 backdrop-blur-md border-b border-slate-800 px-6 py-4 flex items-center justify-between shrink-0 z-10">
