@@ -7,7 +7,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Deploy via SSH
@@ -33,9 +33,10 @@ jobs:
             echo "→ [2/7] Installing dependencies"
             npm ci 2>&1 | tail -5
 
-            echo "→ [2b/7] Security audit"
-            CRITICAL=$(npm audit --audit-level=critical --json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('metadata',{}).get('vulnerabilities',{}).get('critical',0))" 2>/dev/null || echo "0")
-            HIGH=$(npm audit --audit-level=critical --json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('metadata',{}).get('vulnerabilities',{}).get('high',0))" 2>/dev/null || echo "0")
+            echo "→ [2b/7] Security audit (single pass)"
+            AUDIT_JSON=$(npm audit --audit-level=critical --json 2>/dev/null || true)
+            CRITICAL=$(echo "$AUDIT_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('metadata',{}).get('vulnerabilities',{}).get('critical',0))" 2>/dev/null || echo "0")
+            HIGH=$(echo "$AUDIT_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('metadata',{}).get('vulnerabilities',{}).get('high',0))" 2>/dev/null || echo "0")
             echo "  Vulnerabilidades críticas: $CRITICAL | altas: $HIGH"
             if [ "$CRITICAL" -gt "0" ]; then
               echo "✗ FALLO: $CRITICAL vulnerabilidad(es) CRÍTICA(S). Ejecuta 'npm audit fix' localmente."
