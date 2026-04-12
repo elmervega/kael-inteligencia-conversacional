@@ -243,7 +243,10 @@ export default function DashboardSistema() {
             <div className="bg-zinc-900/30 border border-zinc-800 rounded-2xl p-5">
               <div className="flex items-start justify-between mb-1">
                 <div>
-                  <h2 className="text-sm font-semibold text-white">🖥️ Estado de Servicios</h2>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-sm font-semibold text-white">🖥️ Estado de Servicios</h2>
+                    <span className="text-[0.6rem] bg-zinc-800/80 border border-zinc-700 text-zinc-400 px-2 py-0.5 rounded-full">Monitoreo en tiempo real · DB · Caché · Servidor</span>
+                  </div>
                   <p className="text-[0.68rem] text-zinc-600 mt-0.5">
                     Monitorea en tiempo real si la base de datos, caché y el servidor están operativos.
                     {servicesUpdate && <span> · Actualizado {servicesUpdate.toLocaleTimeString('es')} · refresca cada 60s</span>}
@@ -310,7 +313,10 @@ export default function DashboardSistema() {
             {/* Quick user stats */}
             <div className="bg-zinc-900/30 border border-zinc-800 rounded-2xl p-5">
               <div className="mb-3">
-                <h2 className="text-sm font-semibold text-white">👥 Resumen de Usuarios</h2>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-sm font-semibold text-white">👥 Resumen de Usuarios</h2>
+                  <span className="text-[0.6rem] bg-zinc-800/80 border border-zinc-700 text-zinc-400 px-2 py-0.5 rounded-full">Cuentas registradas · gestionar desde tab Clientes</span>
+                </div>
                 <p className="text-[0.68rem] text-zinc-600 mt-0.5">Total de cuentas registradas en Kael. Ve al tab <strong className="text-zinc-400">Clientes</strong> para gestionar, bloquear o eliminar usuarios.</p>
               </div>
               <div className="grid grid-cols-3 gap-4">
@@ -337,7 +343,10 @@ export default function DashboardSistema() {
             {/* Security */}
             <div className="bg-zinc-900/30 border border-zinc-800 rounded-2xl p-5">
               <div className="mb-4">
-                <h2 className="text-sm font-semibold text-white">🔒 Eventos de Seguridad (24h)</h2>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-sm font-semibold text-white">🔒 Eventos de Seguridad (24h)</h2>
+                  <span className="text-[0.6rem] bg-zinc-800/80 border border-zinc-700 text-zinc-400 px-2 py-0.5 rounded-full">Logins fallidos · IPs bloqueadas · Rate limit · Errores de sesión</span>
+                </div>
                 <p className="text-[0.68rem] text-zinc-600 mt-0.5">
                   Actividad sospechosa detectada en las últimas 24 horas. Incluye intentos de login fallidos,
                   IPs bloqueadas automáticamente por fail2ban, y abusos de rate limiting.
@@ -485,7 +494,10 @@ export default function DashboardSistema() {
           <div className="bg-zinc-900/30 border border-zinc-800 rounded-2xl p-5">
             <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
               <div>
-                <h2 className="text-sm font-semibold text-white">📋 Logs de Aplicación</h2>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-sm font-semibold text-white">📋 Logs de Aplicación</h2>
+                  <span className="text-[0.6rem] bg-zinc-800/80 border border-zinc-700 text-zinc-400 px-2 py-0.5 rounded-full">🔴 Error · 🟡 Warning · ⚪ Info</span>
+                </div>
                 <p className="text-[0.68rem] text-zinc-600 mt-0.5 max-w-xl">
                   Registro en tiempo real del servidor. Muestra errores críticos (rojo), advertencias de seguridad
                   como rate limits o accesos no autorizados (amarillo), y actividad normal (blanco).
