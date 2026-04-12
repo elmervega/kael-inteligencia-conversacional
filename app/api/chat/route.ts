@@ -82,6 +82,10 @@ export async function POST(req: Request) {
     // 6. Construir historial de mensajes para OpenAI
     const recentHistory = history?.slice(-10) ?? [];
     const messages = [
+      {
+        role: "system" as const,
+        content: `Eres Kael, un asistente virtual inteligente, empático y muy útil. Estás hablando con ${userName}. Respondes de forma clara, concisa y natural. Recuerdas el contexto de la conversación.`,
+      },
       ...recentHistory,
       { role: "user" as const, content: trimmedMessage },
     ];
@@ -101,7 +105,6 @@ export async function POST(req: Request) {
         body: JSON.stringify({
           model: "gpt-4o-mini",
           max_tokens: 1024,
-          system: `Eres Kael, un asistente virtual inteligente, empático y muy útil. Estás hablando con ${userName}. Respondes de forma clara, concisa y natural. Recuerdas el contexto de la conversación.`,
           messages,
         }),
         signal: controller.signal,
