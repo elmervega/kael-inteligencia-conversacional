@@ -2,35 +2,13 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { cacheGet, cacheSet, getCacheKey } from "@/lib/redis";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimitRedis } from "@/lib/rateLimitRedis";
 
 // Límites por plan
 const PLAN_LIMITS: Record<string, { limit: number; window: number }> = {
   free: { limit: 25, window: 3_600_000 },       // 25 msg / 1 hora
   pro:  { limit: 500, window: 2_592_000_000 },   // 500 msg / 30 días
 };
-
-// Rate limiting por userId en memoria (clave incluye plan para evitar colisiones)
-const userRequestCount = new Map<string, { count: number; resetTime: number }>();
-
-function checkRateLimit(
-  userId: string,
-  plan: string,
-  limit: number,
-  window: number
-): { allowed: boolean; remaining: number } {
-  const key = `ratelimit:${plan}:${userId}`;
-  const now = Date.now();
-  const data = userRequestCount.get(key);
-
-  if (!data || now > data.resetTime) {
-    userRequestCount.set(key, { count: 1, resetTime: now + window });
-    return { allowed: true, remaining: limit - 1 };
-  }
-  if (data.count >= limit) return { allowed: false, remaining: 0 };
-
-  data.count++;
-  return { allowed: true, remaining: limit - data.count };
-}
 
 export async function POST(req: Request) {
   try {
@@ -51,10 +29,9 @@ export async function POST(req: Request) {
     const plan = dbUser?.plan ?? "free";
     const planConfig = PLAN_LIMITS[plan] ?? PLAN_LIMITS.free;
 
-    // 3. Rate limiting dinámico basado en plan
-    const { allowed, remaining } = checkRateLimit(
-      userId,
-      plan,
+    // 3. Rate limiting dinámico por plan (Redis-backed)
+    const { allowed, remaining } = await checkRateLimitRedis(
+      `chat:${plan}:${userId}`,
       planConfig.limit,
       planConfig.window
     );
@@ -86,7 +63,7 @@ export async function POST(req: Request) {
 
     const trimmedMessage = message.trim();
 
-    // 5. Cache (solo para mensajes sin historial previo, para ahorrar costos)
+    // 5. Cache (solo para mensajes sin historial previo)
     const cacheKey = getCacheKey(userId, trimmedMessage);
     if (!history || history.length === 0) {
       const cached = await cacheGet(cacheKey);

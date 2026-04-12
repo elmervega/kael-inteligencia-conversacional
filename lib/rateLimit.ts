@@ -1,19 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-
-interface RateLimitEntry {
-  count: number
-  resetTime: number
-}
-
-const rateLimitStore = new Map<string, RateLimitEntry>()
-
-// Clean expired entries every minute
-setInterval(() => {
-  const now = Date.now()
-  for (const [key, entry] of rateLimitStore.entries()) {
-    if (entry.resetTime < now) rateLimitStore.delete(key)
-  }
-}, 60000)
+import { checkRateLimitRedis } from './rateLimitRedis'
 
 export const rateLimitConfig = {
   defaultWindow: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'),
@@ -24,7 +10,6 @@ export const rateLimitConfig = {
 }
 
 export function getClientIp(request: NextRequest): string {
-  // CF-Connecting-IP is the real client IP behind Cloudflare
   const cfIp = request.headers.get('cf-connecting-ip')
   if (cfIp) return cfIp.trim()
   const forwarded = request.headers.get('x-forwarded-for')
@@ -34,35 +19,17 @@ export function getClientIp(request: NextRequest): string {
   return request.ip || 'unknown'
 }
 
-export function checkRateLimit(
-  identifier: string,
-  limit: number,
-  windowMs: number
-): { limited: boolean; remaining: number; resetTime: number } {
-  const now = Date.now()
-  const key = `rl:${identifier}`
-  let entry = rateLimitStore.get(key)
-
-  if (!entry || entry.resetTime < now) {
-    entry = { count: 0, resetTime: now + windowMs }
-    rateLimitStore.set(key, entry)
-  }
-
-  entry.count++
-  return {
-    limited: entry.count > limit,
-    remaining: Math.max(0, limit - entry.count),
-    resetTime: entry.resetTime
-  }
-}
-
 export function withRateLimit(
   handler: (req: NextRequest) => Promise<Response>,
   config: { window: number; max: number }
 ) {
   return async (req: NextRequest) => {
     const clientIp = getClientIp(req)
-    const { limited, remaining, resetTime } = checkRateLimit(clientIp, config.max, config.window)
+    const { allowed, remaining, resetTime } = await checkRateLimitRedis(
+      `ip:${clientIp}`,
+      config.max,
+      config.window
+    )
 
     const rlHeaders = {
       'X-RateLimit-Limit': config.max.toString(),
@@ -70,7 +37,7 @@ export function withRateLimit(
       'X-RateLimit-Reset': Math.ceil(resetTime / 1000).toString()
     }
 
-    if (limited) {
+    if (!allowed) {
       const retryAfter = Math.ceil((resetTime - Date.now()) / 1000)
       return new NextResponse(
         JSON.stringify({ error: 'Too many requests. Please try again later.', retryAfter }),

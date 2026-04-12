@@ -1,32 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRedis } from "@/lib/redis";
+import { checkRateLimitRedis } from "@/lib/rateLimitRedis";
 import { exec } from "child_process";
 import { promisify } from "util";
 
 const execPromise = promisify(exec);
 
-// 🔐 RATE LIMITING FOR SYSTEM STATUS ENDPOINT
-const statusRateLimit = new Map<string, { count: number; resetTime: number }>();
-const STATUS_RATE_LIMIT = 240; // 240 requests per hour (4 per min — soporta polling cada 15s)
-const STATUS_RATE_WINDOW = 3600000; // 1 hour
-
-function checkStatusRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const userData = statusRateLimit.get(ip);
-
-  if (!userData || now > userData.resetTime) {
-    statusRateLimit.set(ip, { count: 1, resetTime: now + STATUS_RATE_WINDOW });
-    return true;
-  }
-
-  if (userData.count >= STATUS_RATE_LIMIT) {
-    return false;
-  }
-
-  userData.count++;
-  return true;
-}
+// 240 requests per hour (4 per min — soporta polling cada 15s)
+const STATUS_RATE_LIMIT = 240;
+const STATUS_RATE_WINDOW = 3_600_000;
 
 // 🔐 AUTHENTICATION CHECK
 function isAuthorized(authHeader: string | null): boolean {
@@ -47,11 +30,14 @@ export async function GET(req: Request) {
              req.headers.get("x-forwarded-for")?.split(",")[0] ||
              "unknown";
 
-  // Check rate limit
-  if (!checkStatusRateLimit(ip)) {
+  // Check rate limit (Redis-backed)
+  const { allowed: statusAllowed } = await checkRateLimitRedis(
+    `status:${ip}`, STATUS_RATE_LIMIT, STATUS_RATE_WINDOW
+  );
+  if (!statusAllowed) {
     console.warn(`[Security] Rate limit exceeded for /api/system/status from ${ip}`);
     return NextResponse.json(
-      { error: "Rate limit exceeded. Max 30 requests per hour." },
+      { error: "Rate limit exceeded. Max 240 requests per hour." },
       { status: 429 }
     );
   }

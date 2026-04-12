@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 import { cacheGet, cacheSet, getCacheKey } from "@/lib/redis";
+import { checkRateLimitRedis } from "@/lib/rateLimitRedis";
 
 // 🌟 1. EL PASE VIP (CORS HEADERS) 🌟
 const corsHeaders = {
@@ -9,28 +10,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
-// 🔒 2. RATE LIMITING POR USUARIO (En memoria - para producción usar Redis)
-const userRequestCount = new Map<string, { count: number; resetTime: number }>();
-const RATE_LIMIT = 10000; // TEST MODE: 10000 solicitudes (effectively unlimited for testing)
-const RATE_WINDOW = 3600000; // por hora (3600000 ms)
-
-function checkRateLimit(userId: string): { allowed: boolean; remainingRequests: number } {
-  const now = Date.now();
-  const userData = userRequestCount.get(userId);
-
-  if (!userData || now > userData.resetTime) {
-    // Nueva ventana de tiempo
-    userRequestCount.set(userId, { count: 1, resetTime: now + RATE_WINDOW });
-    return { allowed: true, remainingRequests: RATE_LIMIT - 1 };
-  }
-
-  if (userData.count >= RATE_LIMIT) {
-    return { allowed: false, remainingRequests: 0 };
-  }
-
-  userData.count++;
-  return { allowed: true, remainingRequests: RATE_LIMIT - userData.count };
-}
+// Rate limit móvil: 10000/hora (Redis-backed)
+const MOBILE_RATE_LIMIT = 10000;
+const MOBILE_RATE_WINDOW = 3_600_000;
 
 // 🌟 3. LA PUERTA DEL EXPLORADOR (OPTIONS) 🌟
 export async function OPTIONS() {
@@ -72,8 +54,10 @@ export async function POST(req: Request) {
     const userId = decoded.userId as string;
     const userName = decoded.name as string;
 
-    // 2️⃣ RATE LIMITING - Verificar límite de solicitudes por usuario
-    const { allowed, remainingRequests } = checkRateLimit(userId);
+    // 2️⃣ RATE LIMITING - Verificar límite de solicitudes por usuario (Redis-backed)
+    const { allowed, remaining: remainingRequests } = await checkRateLimitRedis(
+      `mobile:${userId}`, MOBILE_RATE_LIMIT, MOBILE_RATE_WINDOW
+    );
     if (!allowed) {
       console.warn(`Rate limit exceeded for user: ${userId}`);
       return NextResponse.json(

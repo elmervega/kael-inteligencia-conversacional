@@ -1,21 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { signSistemaToken } from '@/lib/sistema-auth'
-
-// Rate limiting: 5 intentos por IP cada 15 minutos
-const attempts = new Map<string, { count: number; resetAt: number }>()
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now()
-  const entry = attempts.get(ip)
-  if (!entry || now > entry.resetAt) {
-    attempts.set(ip, { count: 1, resetAt: now + 15 * 60 * 1000 })
-    return true
-  }
-  if (entry.count >= 5) return false
-  entry.count++
-  return true
-}
+import { checkRateLimitRedis } from '@/lib/rateLimitRedis'
 
 export async function POST(req: NextRequest) {
   const ip =
@@ -23,7 +9,9 @@ export async function POST(req: NextRequest) {
     req.headers.get('x-forwarded-for')?.split(',')[0] ||
     'unknown'
 
-  if (!checkRateLimit(ip)) {
+  // Rate limiting: 5 intentos por IP cada 15 minutos (Redis-backed)
+  const { allowed } = await checkRateLimitRedis(`sistema:login:${ip}`, 5, 15 * 60 * 1000)
+  if (!allowed) {
     return NextResponse.json(
       { error: 'Demasiados intentos. Espera 15 minutos.' },
       { status: 429 }

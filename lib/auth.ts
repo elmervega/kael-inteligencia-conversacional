@@ -4,6 +4,7 @@ import { prisma } from './prisma'
 import bcrypt from 'bcryptjs'
 import { Resend } from 'resend'
 import { authConfig } from '../auth.config'
+import { checkRateLimitRedis } from './rateLimitRedis'
 
 class EmailNotVerifiedError extends CredentialsSignin {
   code = 'email_not_verified' as const
@@ -17,19 +18,10 @@ class UserBlockedError extends CredentialsSignin {
   code = 'user_blocked' as const
 }
 
-// Rate limiting: 10 intentos por IP cada 15 minutos
-const loginAttempts = new Map<string, { count: number; resetAt: number }>()
-
-function checkLoginRateLimit(ip: string): boolean {
-  const now = Date.now()
-  const entry = loginAttempts.get(ip)
-  if (!entry || now > entry.resetAt) {
-    loginAttempts.set(ip, { count: 1, resetAt: now + 15 * 60 * 1000 })
-    return true
-  }
-  if (entry.count >= 10) return false
-  entry.count++
-  return true
+// Rate limiting: 10 intentos por IP cada 15 minutos (Redis-backed)
+async function checkLoginRateLimit(ip: string): Promise<boolean> {
+  const { allowed } = await checkRateLimitRedis(`login:${ip}`, 10, 15 * 60 * 1000)
+  return allowed
 }
 
 export const {
@@ -54,7 +46,7 @@ export const {
           (request as any)?.headers?.get('cf-connecting-ip') ||
           (request as any)?.headers?.get('x-forwarded-for')?.split(',')[0] ||
           'unknown'
-        if (!checkLoginRateLimit(ip)) {
+        if (!await checkLoginRateLimit(ip)) {
           console.warn(`[Security] Login rate limit exceeded for IP: ${ip}`)
           throw new LoginRateLimitError()
         }
