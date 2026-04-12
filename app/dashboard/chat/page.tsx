@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface Message {
   id: string;
@@ -20,6 +22,63 @@ const KaelIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+/* ── Markdown components con estilos del tema oscuro ── */
+const markdownComponents: React.ComponentProps<typeof ReactMarkdown>["components"] = {
+  p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
+  strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
+  em: ({ children }) => <em className="italic text-slate-300">{children}</em>,
+  h1: ({ children }) => <h1 className="text-base font-bold text-white mt-3 mb-1 first:mt-0">{children}</h1>,
+  h2: ({ children }) => <h2 className="text-sm font-bold text-white mt-3 mb-1 first:mt-0">{children}</h2>,
+  h3: ({ children }) => <h3 className="text-sm font-semibold text-slate-100 mt-2 mb-1 first:mt-0">{children}</h3>,
+  ul: ({ children }) => <ul className="list-disc list-inside space-y-0.5 my-2 text-slate-300">{children}</ul>,
+  ol: ({ children }) => <ol className="list-decimal list-inside space-y-0.5 my-2 text-slate-300">{children}</ol>,
+  li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+  blockquote: ({ children }) => (
+    <blockquote className="border-l-2 border-indigo-500/60 pl-3 my-2 text-slate-400 italic">
+      {children}
+    </blockquote>
+  ),
+  a: ({ href, children }) => (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-indigo-400 underline underline-offset-2 hover:text-indigo-300 transition-colors"
+    >
+      {children}
+    </a>
+  ),
+  pre: ({ children }) => (
+    <pre className="bg-slate-900/80 border border-slate-700/60 rounded-lg p-3 overflow-x-auto my-2 text-xs font-mono">
+      {children}
+    </pre>
+  ),
+  code: ({ className, children }) => {
+    const isBlock = !!className;
+    return isBlock ? (
+      <code className={`${className} text-slate-300 text-xs`}>{children}</code>
+    ) : (
+      <code className="bg-slate-800/80 text-indigo-300 px-1.5 py-0.5 rounded text-[0.78em] font-mono border border-slate-700/40">
+        {children}
+      </code>
+    );
+  },
+  hr: () => <hr className="border-slate-700/50 my-3" />,
+  table: ({ children }) => (
+    <div className="overflow-x-auto my-2">
+      <table className="text-xs border-collapse w-full">{children}</table>
+    </div>
+  ),
+  th: ({ children }) => (
+    <th className="border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-left text-slate-300 font-semibold">
+      {children}
+    </th>
+  ),
+  td: ({ children }) => (
+    <td className="border border-slate-700/60 px-3 py-1.5 text-slate-400">{children}</td>
+  ),
+};
+
 export default function ChatPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -27,6 +86,7 @@ export default function ChatPage() {
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [remaining, setRemaining] = useState<number | null>(null);
+  const [hydrated, setHydrated] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -36,6 +96,38 @@ export default function ChatPage() {
       router.replace("/login");
     }
   }, [status, router]);
+
+  // Tarea 3: Cargar historial desde localStorage cuando la sesión está lista
+  useEffect(() => {
+    if (status === "authenticated" && session?.user?.email && !hydrated) {
+      try {
+        const key = `kael-chat-${session.user.email}`;
+        const saved = localStorage.getItem(key);
+        if (saved) {
+          const parsed: Message[] = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setMessages(parsed);
+          }
+        }
+      } catch {
+        // localStorage inaccesible — continuar sin historial
+      }
+      setHydrated(true);
+    }
+  }, [status, session, hydrated]);
+
+  // Tarea 3: Persistir historial en localStorage cuando messages cambia
+  useEffect(() => {
+    if (!hydrated || !session?.user?.email) return;
+    try {
+      const key = `kael-chat-${session.user.email}`;
+      if (messages.length > 0) {
+        localStorage.setItem(key, JSON.stringify(messages));
+      }
+    } catch {
+      // Silencioso — localStorage puede estar deshabilitado
+    }
+  }, [messages, hydrated, session]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -56,7 +148,7 @@ export default function ChatPage() {
     setIsLoading(true);
 
     try {
-      // Construir historial (sin el mensaje que acabamos de agregar — el server lo recibe aparte)
+      // Tarea 1: Enviar historial completo para contexto (ya implementado)
       const history = messages.map((m) => ({
         role: m.role,
         content: m.content,
@@ -113,6 +205,12 @@ export default function ChatPage() {
   const clearChat = () => {
     setMessages([]);
     setRemaining(null);
+    // Tarea 3: Limpiar también el localStorage al limpiar la conversación
+    if (session?.user?.email) {
+      try {
+        localStorage.removeItem(`kael-chat-${session.user.email}`);
+      } catch {}
+    }
   };
 
   // Loading de sesión
@@ -222,13 +320,23 @@ export default function ChatPage() {
               </div>
             )}
             <div
-              className={`px-5 py-3.5 max-w-[75%] text-[14px] leading-relaxed whitespace-pre-wrap break-words transition-all duration-200 hover:-translate-y-0.5 ${
+              className={`px-5 py-3.5 max-w-[75%] text-[14px] leading-relaxed break-words transition-all duration-200 hover:-translate-y-0.5 ${
                 msg.role === "user"
-                  ? "bg-gradient-to-br from-indigo-500 via-indigo-600 to-indigo-700 text-white rounded-[20px] rounded-br-sm shadow-[0_0_15px_-3px_rgba(79,70,229,.35)]"
+                  ? "bg-gradient-to-br from-indigo-500 via-indigo-600 to-indigo-700 text-white rounded-[20px] rounded-br-sm shadow-[0_0_15px_-3px_rgba(79,70,229,.35)] whitespace-pre-wrap"
                   : "bg-[#0a0f26] text-slate-200 border border-slate-800 rounded-[20px] rounded-bl-sm"
               }`}
             >
-              {msg.content}
+              {/* Tarea 2: Markdown solo en mensajes del asistente */}
+              {msg.role === "assistant" ? (
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={markdownComponents}
+                >
+                  {msg.content}
+                </ReactMarkdown>
+              ) : (
+                msg.content
+              )}
             </div>
           </div>
         ))}
