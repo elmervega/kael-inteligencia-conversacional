@@ -87,6 +87,7 @@ export default function ChatPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [remaining, setRemaining] = useState<number | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [rateLimited, setRateLimited] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -164,6 +165,10 @@ export default function ChatPage() {
 
       if (data.remaining !== undefined) setRemaining(data.remaining);
 
+      if (res.status === 429) {
+        setRateLimited(true);
+      }
+
       if (!res.ok || !data.success) {
         setMessages((prev) => [
           ...prev,
@@ -176,6 +181,7 @@ export default function ChatPage() {
         return;
       }
 
+      setRateLimited(false);
       setMessages((prev) => [
         ...prev,
         { id: `a-${Date.now()}`, role: "assistant", content: data.response },
@@ -361,6 +367,30 @@ export default function ChatPage() {
 
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Banner de rate limit — aparece cuando el usuario agota sus mensajes */}
+      {rateLimited && (
+        <div className="mx-4 mb-3 shrink-0 z-10">
+          <div className="bg-gradient-to-r from-violet-950/70 to-indigo-950/70 border border-violet-500/30 rounded-2xl px-5 py-4 flex items-center justify-between gap-4 flex-wrap shadow-[0_0_20px_rgba(139,92,246,0.15)]">
+            <div className="flex items-start gap-3">
+              <span className="text-xl mt-0.5">💎</span>
+              <div>
+                <p className="text-sm font-semibold text-white">Alcanzaste tu límite del plan Free</p>
+                <p className="text-xs text-zinc-400 mt-0.5">Actualiza a Pro para seguir chateando — 500 mensajes al mes</p>
+              </div>
+            </div>
+            <a
+              href="/dashboard/plan"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-indigo-600 to-violet-600 rounded-xl hover:from-indigo-500 hover:to-violet-500 transition-all shrink-0 shadow-lg"
+            >
+              Actualizar a Pro
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3">
+                <path d="M7 17L17 7M17 7H7M17 7v10"/>
+              </svg>
+            </a>
+          </div>
+        </div>
+      )}
 
       {/* Input */}
       <div className="bg-[#000318] border-t border-slate-800 px-6 py-4 shrink-0 z-10">

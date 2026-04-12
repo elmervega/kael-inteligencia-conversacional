@@ -74,7 +74,25 @@ function NavLinks({
         ))}
       </nav>
 
-      <div className="mt-auto pt-4 border-t border-[#1a1a1a]">
+      <div className="mt-auto">
+        {/* CTA Upgrade para usuarios Free */}
+        {user.plan !== 'pro' && (
+          <a
+            href="/dashboard/plan"
+            className="flex items-center gap-2.5 px-3 py-2.5 mb-3 rounded-xl bg-gradient-to-r from-indigo-900/40 to-violet-900/40 border border-indigo-500/20 hover:border-indigo-500/40 transition-all group"
+          >
+            <span className="text-base w-5 text-center">💎</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-indigo-300 group-hover:text-indigo-200 transition-colors truncate">Actualizar a Pro</p>
+              <p className="text-[0.6rem] text-zinc-600 truncate">B/. 9.99 / mes · Yappy</p>
+            </div>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 text-indigo-400 shrink-0">
+              <path d="M7 17L17 7M17 7H7M17 7v10"/>
+            </svg>
+          </a>
+        )}
+
+        <div className="pt-4 border-t border-[#1a1a1a]">
         <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-[#161616] border border-[#222]">
           <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-xs font-bold text-white shrink-0">
             {user.name?.[0]?.toUpperCase() ?? user.email?.[0]?.toUpperCase() ?? 'K'}
@@ -90,6 +108,7 @@ function NavLinks({
         >
           Cerrar sesión
         </button>
+        </div>
       </div>
     </>
   )
