@@ -9,6 +9,25 @@ class EmailNotVerifiedError extends CredentialsSignin {
   code = 'email_not_verified' as const
 }
 
+class LoginRateLimitError extends CredentialsSignin {
+  code = 'rate_limit' as const
+}
+
+// Rate limiting: 10 intentos por IP cada 15 minutos
+const loginAttempts = new Map<string, { count: number; resetAt: number }>()
+
+function checkLoginRateLimit(ip: string): boolean {
+  const now = Date.now()
+  const entry = loginAttempts.get(ip)
+  if (!entry || now > entry.resetAt) {
+    loginAttempts.set(ip, { count: 1, resetAt: now + 15 * 60 * 1000 })
+    return true
+  }
+  if (entry.count >= 10) return false
+  entry.count++
+  return true
+}
+
 export const {
   handlers,
   signIn,
@@ -23,8 +42,18 @@ export const {
         email: { label: 'Email o teléfono', type: 'text' },
         password: { label: 'Password', type: 'password' }
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         if (!credentials?.email || !credentials?.password) return null
+
+        // Rate limiting por IP
+        const ip =
+          (request as any)?.headers?.get('cf-connecting-ip') ||
+          (request as any)?.headers?.get('x-forwarded-for')?.split(',')[0] ||
+          'unknown'
+        if (!checkLoginRateLimit(ip)) {
+          console.warn(`[Security] Login rate limit exceeded for IP: ${ip}`)
+          throw new LoginRateLimitError()
+        }
 
         const identifier = (credentials.email as string).trim()
         const isPhone = /^[\+\d][\d\s\-\(\)]{5,}$/.test(identifier) && !identifier.includes('@')

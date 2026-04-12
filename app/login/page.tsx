@@ -63,9 +63,14 @@ function LoginForm() {
           result.error === 'email_not_verified' ||
           returnUrl.includes('code=email_not_verified') ||
           returnUrl.includes('error=email_not_verified')
+        const isRateLimit =
+          result.error === 'rate_limit' ||
+          returnUrl.includes('code=rate_limit')
 
         if (isEmailNotVerified) {
           setErrorType('email_not_verified')
+        } else if (isRateLimit) {
+          setErrorType('rate_limit')
         } else if (result.error === 'CredentialsSignin' || result.error === 'CallbackRouteError') {
           setErrorType('credentials')
         } else {

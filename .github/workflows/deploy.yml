@@ -29,7 +29,23 @@ jobs:
             echo "→ [2/7] Installing dependencies"
             npm ci 2>&1 | tail -5
 
+            echo "→ [2b/7] Security audit"
+            AUDIT=$(npm audit --audit-level=critical --json 2>&1 || true)
+            CRITICAL=$(echo "$AUDIT" | node -e "try{const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));console.log(d.metadata?.vulnerabilities?.critical??0)}catch{console.log(0)}" 2>/dev/null || echo "0")
+            HIGH=$(echo "$AUDIT" | node -e "try{const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));console.log(d.metadata?.vulnerabilities?.high??0)}catch{console.log(0)}" 2>/dev/null || echo "0")
+            echo "  Vulnerabilidades críticas: $CRITICAL | altas: $HIGH"
+            if [ "$CRITICAL" -gt "0" ]; then
+              echo "✗ FALLO: $CRITICAL vulnerabilidad(es) CRÍTICA(S) encontrada(s). Ejecuta 'npm audit fix' localmente."
+              exit 1
+            fi
+            if [ "$HIGH" -gt "0" ]; then
+              echo "⚠️  Advertencia: $HIGH vulnerabilidad(es) ALTA(S) — no bloquea el deploy pero requiere atención"
+            else
+              echo "✓ Sin vulnerabilidades críticas o altas"
+            fi
+
             echo "→ [3/7] Running DB migrations"
+
             npx prisma migrate deploy 2>&1
 
             echo "→ [4/7] Generating Prisma client"
