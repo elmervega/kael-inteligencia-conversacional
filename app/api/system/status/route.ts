@@ -8,7 +8,7 @@ const execPromise = promisify(exec);
 
 // 🔐 RATE LIMITING FOR SYSTEM STATUS ENDPOINT
 const statusRateLimit = new Map<string, { count: number; resetTime: number }>();
-const STATUS_RATE_LIMIT = 30; // 30 requests per hour
+const STATUS_RATE_LIMIT = 240; // 240 requests per hour (4 per min — soporta polling cada 15s)
 const STATUS_RATE_WINDOW = 3600000; // 1 hour
 
 function checkStatusRateLimit(ip: string): boolean {

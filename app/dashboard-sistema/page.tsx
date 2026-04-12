@@ -70,12 +70,16 @@ export default function DashboardSistema() {
   const [blockingId, setBlockingId] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<UserRow | null>(null)
 
+  const [servicesError, setServicesError] = useState(false)
+  const [servicesUpdate, setServicesUpdate] = useState<Date | null>(null)
+
   /* ── Fetchers ── */
   const fetchServices = useCallback(async () => {
     try {
       const res = await fetch('/api/system/status')
-      if (res.ok) setServices(await res.json())
-    } catch {}
+      if (res.ok) { setServices(await res.json()); setServicesError(false); setServicesUpdate(new Date()) }
+      else setServicesError(true)
+    } catch { setServicesError(true) }
   }, [])
 
   const fetchLogs = useCallback(async () => {
@@ -111,10 +115,10 @@ export default function DashboardSistema() {
 
   useEffect(() => {
     fetchServices(); fetchLogs(); fetchSecurity(); fetchUsers()
-    const t1 = setInterval(fetchServices, 30000)
-    const t2 = setInterval(fetchLogs, 15000)
-    const t3 = setInterval(fetchSecurity, 30000)
-    const t4 = setInterval(fetchUsers, 60000)
+    const t1 = setInterval(fetchServices, 60000)   // servicios: cada 60s
+    const t2 = setInterval(fetchLogs, 30000)        // logs: cada 30s
+    const t3 = setInterval(fetchSecurity, 60000)    // seguridad: cada 60s
+    const t4 = setInterval(fetchUsers, 60000)       // usuarios: cada 60s
     return () => { clearInterval(t1); clearInterval(t2); clearInterval(t3); clearInterval(t4) }
   }, [fetchServices, fetchLogs, fetchSecurity, fetchUsers])
 
@@ -236,82 +240,141 @@ export default function DashboardSistema() {
         {tab === 'overview' && (
           <>
             {/* Services */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4">
-                <p className="text-[0.68rem] text-zinc-500 uppercase tracking-wider mb-2">🗄️ PostgreSQL</p>
-                <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${
-                  services?.services.database?.status?.includes('✅')
-                    ? 'bg-green-900/30 text-green-400 border-green-800'
-                    : 'bg-red-900/30 text-red-400 border-red-800'
-                }`}>
-                  {services?.services.database?.status ?? '—'}
-                </span>
-                <p className="text-xs text-zinc-500 mt-2">{services?.services.database?.description ?? 'Cargando...'}</p>
+            <div className="bg-zinc-900/30 border border-zinc-800 rounded-2xl p-5">
+              <div className="flex items-start justify-between mb-1">
+                <div>
+                  <h2 className="text-sm font-semibold text-white">🖥️ Estado de Servicios</h2>
+                  <p className="text-[0.68rem] text-zinc-600 mt-0.5">
+                    Monitorea en tiempo real si la base de datos, caché y el servidor están operativos.
+                    {servicesUpdate && <span> · Actualizado {servicesUpdate.toLocaleTimeString('es')} · refresca cada 60s</span>}
+                  </p>
+                </div>
+                {servicesError && (
+                  <span className="text-[0.65rem] bg-yellow-900/30 border border-yellow-800 text-yellow-400 px-2 py-1 rounded-lg shrink-0">
+                    ⚠️ Sin datos
+                  </span>
+                )}
               </div>
-              <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4">
-                <p className="text-[0.68rem] text-zinc-500 uppercase tracking-wider mb-2">⚡ Redis</p>
-                <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${
-                  services?.services.redis?.status?.includes('✅')
-                    ? 'bg-green-900/30 text-green-400 border-green-800'
-                    : 'bg-yellow-900/30 text-yellow-400 border-yellow-800'
-                }`}>
-                  {services?.services.redis?.status ?? '—'}
-                </span>
-                <p className="text-xs text-zinc-500 mt-2">{services?.services.redis?.description ?? 'Cargando...'}</p>
-              </div>
-              <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4">
-                <p className="text-[0.68rem] text-zinc-500 uppercase tracking-wider mb-2">⏱️ Uptime</p>
-                <p className="text-xs text-zinc-300 font-mono mt-3">{services?.uptime ?? 'Cargando...'}</p>
-              </div>
+
+              {servicesError ? (
+                <div className="mt-3 bg-yellow-950/20 border border-yellow-900/40 rounded-xl p-4">
+                  <p className="text-xs font-semibold text-yellow-400 mb-2">🚨 Plan de contingencia — servicio no responde</p>
+                  <ol className="text-xs text-zinc-500 space-y-1 list-decimal list-inside">
+                    <li>SSH al servidor: <code className="text-zinc-400 bg-zinc-800 px-1 rounded">ssh root@165.22.232.160</code></li>
+                    <li>Revisar estado: <code className="text-zinc-400 bg-zinc-800 px-1 rounded">systemctl status kael-web</code></li>
+                    <li>Ver logs: <code className="text-zinc-400 bg-zinc-800 px-1 rounded">journalctl -u kael-web -n 50</code></li>
+                    <li>Reiniciar: <code className="text-zinc-400 bg-zinc-800 px-1 rounded">systemctl restart kael-web</code></li>
+                  </ol>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
+                  <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4">
+                    <p className="text-[0.68rem] text-zinc-500 uppercase tracking-wider mb-2">🗄️ PostgreSQL</p>
+                    <p className="text-[0.65rem] text-zinc-600 mb-2">Base de datos principal. Almacena usuarios, sesiones y conversaciones.</p>
+                    <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${
+                      services?.services.database?.status?.includes('✅')
+                        ? 'bg-green-900/30 text-green-400 border-green-800'
+                        : 'bg-red-900/30 text-red-400 border-red-800'
+                    }`}>
+                      {services?.services.database?.status ?? '—'}
+                    </span>
+                    <p className="text-xs text-zinc-500 mt-2">{services?.services.database?.description ?? 'Verificando...'}</p>
+                    {services?.services.database?.status?.includes('❌') && (
+                      <p className="text-[0.65rem] text-red-400 mt-2">⚡ Contingencia: <code className="bg-zinc-800 px-1 rounded">systemctl restart postgresql</code></p>
+                    )}
+                  </div>
+                  <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4">
+                    <p className="text-[0.68rem] text-zinc-500 uppercase tracking-wider mb-2">⚡ Redis</p>
+                    <p className="text-[0.65rem] text-zinc-600 mb-2">Caché de sesiones y rate limiting. Si cae, el sistema usa fallback automático.</p>
+                    <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${
+                      services?.services.redis?.status?.includes('✅')
+                        ? 'bg-green-900/30 text-green-400 border-green-800'
+                        : 'bg-yellow-900/30 text-yellow-400 border-yellow-800'
+                    }`}>
+                      {services?.services.redis?.status ?? '—'}
+                    </span>
+                    <p className="text-xs text-zinc-500 mt-2">{services?.services.redis?.description ?? 'Verificando...'}</p>
+                    {services?.services.redis?.status?.includes('⚠️') && (
+                      <p className="text-[0.65rem] text-yellow-400 mt-2">⚡ Fallback activo — el sistema sigue funcionando sin caché</p>
+                    )}
+                  </div>
+                  <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4">
+                    <p className="text-[0.68rem] text-zinc-500 uppercase tracking-wider mb-2">⏱️ Uptime del Servidor</p>
+                    <p className="text-[0.65rem] text-zinc-600 mb-2">Tiempo que el servicio lleva corriendo sin reinicios no planificados.</p>
+                    <p className="text-xs text-zinc-300 font-mono mt-2 break-all">{services?.uptime ?? 'Verificando...'}</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Quick user stats */}
-            <div className="grid grid-cols-3 gap-4">
-              <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 text-center">
-                <p className="text-3xl font-bold text-white">{users?.total ?? '—'}</p>
-                <p className="text-[0.68rem] text-zinc-500 mt-1">Usuarios registrados</p>
+            <div className="bg-zinc-900/30 border border-zinc-800 rounded-2xl p-5">
+              <div className="mb-3">
+                <h2 className="text-sm font-semibold text-white">👥 Resumen de Usuarios</h2>
+                <p className="text-[0.68rem] text-zinc-600 mt-0.5">Total de cuentas registradas en Kael. Ve al tab <strong className="text-zinc-400">Clientes</strong> para gestionar, bloquear o eliminar usuarios.</p>
               </div>
-              <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 text-center">
-                <p className="text-3xl font-bold text-green-400">{users?.verified ?? '—'}</p>
-                <p className="text-[0.68rem] text-zinc-500 mt-1">Email verificado</p>
-              </div>
-              <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 text-center">
-                <p className={`text-3xl font-bold ${(users?.pendingVerification ?? 0) > 0 ? 'text-yellow-400' : 'text-zinc-400'}`}>
-                  {users?.pendingVerification ?? '—'}
-                </p>
-                <p className="text-[0.68rem] text-zinc-500 mt-1">Sin verificar</p>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 text-center">
+                  <p className="text-3xl font-bold text-white">{users?.total ?? '—'}</p>
+                  <p className="text-[0.68rem] text-zinc-500 mt-1">Total registrados</p>
+                  <p className="text-[0.6rem] text-zinc-700 mt-0.5">Cuentas creadas</p>
+                </div>
+                <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 text-center">
+                  <p className="text-3xl font-bold text-green-400">{users?.verified ?? '—'}</p>
+                  <p className="text-[0.68rem] text-zinc-500 mt-1">Email verificado</p>
+                  <p className="text-[0.6rem] text-zinc-700 mt-0.5">Confirmaron su email</p>
+                </div>
+                <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 text-center">
+                  <p className={`text-3xl font-bold ${(users?.pendingVerification ?? 0) > 0 ? 'text-yellow-400' : 'text-zinc-400'}`}>
+                    {users?.pendingVerification ?? '—'}
+                  </p>
+                  <p className="text-[0.68rem] text-zinc-500 mt-1">Pendientes</p>
+                  <p className="text-[0.6rem] text-zinc-700 mt-0.5">Sin confirmar email</p>
+                </div>
               </div>
             </div>
 
             {/* Security */}
             <div className="bg-zinc-900/30 border border-zinc-800 rounded-2xl p-5">
-              <h2 className="text-sm font-semibold text-white mb-4">🔒 Eventos de Seguridad (24h)</h2>
+              <div className="mb-4">
+                <h2 className="text-sm font-semibold text-white">🔒 Eventos de Seguridad (24h)</h2>
+                <p className="text-[0.68rem] text-zinc-600 mt-0.5">
+                  Actividad sospechosa detectada en las últimas 24 horas. Incluye intentos de login fallidos,
+                  IPs bloqueadas automáticamente por fail2ban, y abusos de rate limiting.
+                </p>
+              </div>
               {securityError ? (
-                <p className="text-yellow-500 text-xs">No se pudo obtener datos</p>
-              ) : (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {[
-                    { label: 'Logins fallidos', value: security?.failedLogins.count24h, color: 'text-red-400' },
-                    { label: 'IPs bloqueadas', value: security?.bannedIPs.length, color: 'text-orange-400' },
-                    { label: 'Rate limit hits', value: security?.rateLimitHits.count24h, color: 'text-yellow-400' },
-                    { label: 'Errores de sesión', value: security?.dashboardAuthErrors.count24h, color: 'text-zinc-400' },
-                  ].map(({ label, value, color }) => (
-                    <div key={label} className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-center">
-                      <p className={`text-2xl font-bold ${color}`}>{value ?? '—'}</p>
-                      <p className="text-[0.65rem] text-zinc-500 mt-1">{label}</p>
-                    </div>
-                  ))}
+                <div className="bg-yellow-950/20 border border-yellow-900/40 rounded-xl p-4">
+                  <p className="text-xs font-semibold text-yellow-400 mb-2">⚠️ No se pudieron obtener datos de seguridad</p>
+                  <p className="text-[0.68rem] text-zinc-500">Plan de contingencia: revisar manualmente con <code className="bg-zinc-800 px-1 rounded text-zinc-400">sudo fail2ban-client status sshd</code> y <code className="bg-zinc-800 px-1 rounded text-zinc-400">journalctl -u kael-web | grep Security</code></p>
                 </div>
-              )}
-              {security && security.bannedIPs.length > 0 && (
-                <div className="mt-4">
-                  <p className="text-[0.68rem] text-zinc-500 uppercase tracking-wider mb-2">IPs bloqueadas por fail2ban</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {security.bannedIPs.map(ip => (
-                      <span key={ip} className="text-xs font-mono bg-red-900/20 border border-red-900/40 text-red-300 px-2 py-0.5 rounded">{ip}</span>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {[
+                      { label: 'Logins fallidos', desc: 'Intentos con password incorrecta', value: security?.failedLogins.count24h, color: 'text-red-400' },
+                      { label: 'IPs bloqueadas', desc: 'Bloqueadas por fail2ban (SSH)', value: security?.bannedIPs.length, color: 'text-orange-400' },
+                      { label: 'Rate limit hits', desc: 'Solicitudes excesivas bloqueadas', value: security?.rateLimitHits.count24h, color: 'text-yellow-400' },
+                      { label: 'Errores de sesión', desc: 'Tokens inválidos o expirados', value: security?.dashboardAuthErrors.count24h, color: 'text-zinc-400' },
+                    ].map(({ label, desc, value, color }) => (
+                      <div key={label} className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-center">
+                        <p className={`text-2xl font-bold ${color}`}>{value ?? '—'}</p>
+                        <p className="text-[0.65rem] text-zinc-500 mt-1">{label}</p>
+                        <p className="text-[0.58rem] text-zinc-700 mt-0.5 leading-snug">{desc}</p>
+                      </div>
                     ))}
                   </div>
-                </div>
+                  {security && security.bannedIPs.length > 0 && (
+                    <div className="mt-4">
+                      <p className="text-[0.68rem] text-zinc-500 uppercase tracking-wider mb-2">IPs bloqueadas por fail2ban</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {security.bannedIPs.map(ip => (
+                          <span key={ip} className="text-xs font-mono bg-red-900/20 border border-red-900/40 text-red-300 px-2 py-0.5 rounded">{ip}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </>
@@ -423,8 +486,10 @@ export default function DashboardSistema() {
             <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
               <div>
                 <h2 className="text-sm font-semibold text-white">📋 Logs de Aplicación</h2>
-                <p className="text-[0.68rem] text-zinc-600 mt-0.5">
-                  {logsUpdate ? `Actualizado ${logsUpdate.toLocaleTimeString('es')} · refresca cada 15s` : 'Cargando...'}
+                <p className="text-[0.68rem] text-zinc-600 mt-0.5 max-w-xl">
+                  Registro en tiempo real del servidor. Muestra errores críticos (rojo), advertencias de seguridad
+                  como rate limits o accesos no autorizados (amarillo), y actividad normal (blanco).
+                  {logsUpdate && <span> · Actualizado {logsUpdate.toLocaleTimeString('es')} · refresca cada 30s</span>}
                 </p>
               </div>
               <div className="flex gap-1.5 flex-wrap">
@@ -438,7 +503,17 @@ export default function DashboardSistema() {
             </div>
 
             {logsError ? (
-              <p className="text-red-400 text-sm py-6 text-center">Error al cargar logs. Reintentando...</p>
+              <div className="mt-4 bg-red-950/20 border border-red-900/40 rounded-xl p-4">
+                <p className="text-xs font-semibold text-red-400 mb-2">🚨 No se pueden leer los logs del servidor</p>
+                <p className="text-[0.68rem] text-zinc-500 mb-3">El proceso no tiene permisos para leer journald, o el servicio no está corriendo.</p>
+                <p className="text-[0.68rem] text-zinc-400 font-semibold mb-1">Plan de contingencia:</p>
+                <ol className="text-[0.68rem] text-zinc-500 space-y-1 list-decimal list-inside">
+                  <li>SSH: <code className="bg-zinc-800 text-zinc-400 px-1 rounded">ssh root@165.22.232.160</code></li>
+                  <li>Logs en vivo: <code className="bg-zinc-800 text-zinc-400 px-1 rounded">journalctl -u kael-web -f</code></li>
+                  <li>Últimos 100: <code className="bg-zinc-800 text-zinc-400 px-1 rounded">journalctl -u kael-web -n 100 --no-pager</code></li>
+                  <li>Solo errores: <code className="bg-zinc-800 text-zinc-400 px-1 rounded">journalctl -u kael-web -p err -n 50</code></li>
+                </ol>
+              </div>
             ) : (
               <div className="space-y-1 max-h-[520px] overflow-y-auto pr-1">
                 {filteredLogs.length === 0 ? (
