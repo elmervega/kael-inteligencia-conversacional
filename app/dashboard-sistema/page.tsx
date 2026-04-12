@@ -48,7 +48,7 @@ export default function DashboardSistema() {
 
   const fetchLogs = useCallback(async () => {
     try {
-      const res = await fetch('/api/sistema/logs')
+      const res = await fetch('/api/sistema/app-logs')
       if (!res.ok) throw new Error()
       const data = await res.json()
       setLogs(data.logs ?? [])
