@@ -27,12 +27,12 @@ export async function GET() {
       Array<{ day: string; calls: bigint; cost: string }>
     >`
       SELECT
-        DATE(created_at)::TEXT AS day,
+        DATE("createdAt")::TEXT AS day,
         COUNT(*)::BIGINT AS calls,
-        SUM(cost_usd)::TEXT AS cost
+        SUM("costUsd")::TEXT AS cost
       FROM api_usage
-      WHERE created_at >= ${monthStart} AND created_at <= ${monthEnd}
-      GROUP BY DATE(created_at)
+      WHERE "createdAt" >= ${monthStart} AND "createdAt" <= ${monthEnd}
+      GROUP BY DATE("createdAt")
       ORDER BY day ASC
     `
 
