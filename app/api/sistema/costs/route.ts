@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireSistemaAuth } from '@/lib/sistema-auth'
 
 const ALERT_THRESHOLD_USD = parseFloat(process.env.OPENAI_COST_ALERT_USD ?? '200')
 
 export async function GET() {
+  if (!(await requireSistemaAuth())) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  }
+
   try {
     const now = new Date()
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { exec } from 'child_process'
 import { promisify } from 'util'
+import { requireSistemaAuth } from '@/lib/sistema-auth'
 
 const execPromise = promisify(exec)
 
@@ -39,6 +40,9 @@ function sanitize(message: string): string {
 }
 
 export async function GET() {
+  if (!(await requireSistemaAuth())) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  }
   try {
     const { stdout } = await execPromise(
       'journalctl -u kael-web -n 100 --no-pager --output=short-iso 2>&1'

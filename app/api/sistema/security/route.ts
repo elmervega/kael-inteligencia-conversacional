@@ -1,10 +1,15 @@
 import { NextResponse } from 'next/server'
 import { exec } from 'child_process'
 import { promisify } from 'util'
+import { requireSistemaAuth } from '@/lib/sistema-auth'
 
 const execPromise = promisify(exec)
 
 export async function GET() {
+  if (!(await requireSistemaAuth())) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  }
+
   const result = {
     failedLogins: { count24h: 0, recent: [] as Array<{ timestamp: string; type: string }> },
     bannedIPs: [] as string[],

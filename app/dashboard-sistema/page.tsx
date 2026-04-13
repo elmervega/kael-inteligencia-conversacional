@@ -84,9 +84,10 @@ export default function DashboardSistema() {
   const [logsUpdate, setLogsUpdate] = useState<Date | null>(null)
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null)
 
-  // Delete / block state
+  // Delete / block / plan state
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [blockingId, setBlockingId] = useState<string | null>(null)
+  const [changingPlanId, setChangingPlanId] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<UserRow | null>(null)
 
   const [servicesError, setServicesError] = useState(false)
@@ -163,6 +164,20 @@ export default function DashboardSistema() {
     } finally {
       setDeletingId(null)
       setConfirmDelete(null)
+    }
+  }
+
+  const handleChangePlan = async (userId: string, plan: string) => {
+    setChangingPlanId(userId)
+    try {
+      const res = await fetch('/api/sistema/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, plan }),
+      })
+      if (res.ok) await fetchUsers()
+    } finally {
+      setChangingPlanId(null)
     }
   }
 
@@ -476,7 +491,23 @@ export default function DashboardSistema() {
                         ) : (
                           <span className="text-[0.6rem] bg-yellow-900/30 border border-yellow-900/50 text-yellow-400 px-1.5 py-0.5 rounded">⏳ Sin verificar</span>
                         ))}
-                        <span className="text-[0.6rem] text-zinc-600 capitalize bg-zinc-800 px-1.5 py-0.5 rounded">{u.plan ?? 'free'}</span>
+                        <select
+                          value={u.plan ?? 'free'}
+                          onChange={e => handleChangePlan(u.id, e.target.value)}
+                          disabled={changingPlanId === u.id}
+                          title="Cambiar plan"
+                          className={`text-[0.6rem] capitalize rounded border px-1.5 py-0.5 cursor-pointer disabled:opacity-50 transition-colors ${
+                            u.plan === 'pro'
+                              ? 'bg-indigo-900/40 border-indigo-700/50 text-indigo-300'
+                              : u.plan === 'empresarial'
+                              ? 'bg-amber-900/40 border-amber-700/50 text-amber-300'
+                              : 'bg-zinc-800 border-zinc-700 text-zinc-400'
+                          }`}
+                        >
+                          <option value="free">free</option>
+                          <option value="pro">pro ⭐</option>
+                          <option value="empresarial">empresarial 🏢</option>
+                        </select>
                       </div>
                       <div className="flex items-center gap-3 mt-0.5 flex-wrap">
                         <span className="text-xs text-zinc-500">{u.email ?? '—'}</span>

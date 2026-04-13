@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireSistemaAuth } from '@/lib/sistema-auth'
 
 export async function GET() {
+  if (!(await requireSistemaAuth())) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  }
   try {
     const [total, verified, recent] = await Promise.all([
       prisma.user.count(),
@@ -37,6 +41,9 @@ export async function GET() {
 }
 
 export async function DELETE(req: NextRequest) {
+  if (!(await requireSistemaAuth())) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  }
   let body: { userId?: string }
   try {
     body = await req.json()
@@ -64,17 +71,23 @@ export async function DELETE(req: NextRequest) {
   return NextResponse.json({ ok: true, deleted: { email: user.email, name: user.name } })
 }
 
+const VALID_PLANS = ['free', 'pro', 'empresarial'] as const
+
 export async function PATCH(req: NextRequest) {
-  let body: { userId?: string; blocked?: boolean }
+  if (!(await requireSistemaAuth())) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  }
+
+  let body: { userId?: string; blocked?: boolean; plan?: string }
   try {
     body = await req.json()
   } catch {
     return NextResponse.json({ error: 'Solicitud inválida' }, { status: 400 })
   }
 
-  const { userId, blocked } = body
-  if (!userId || typeof userId !== 'string' || typeof blocked !== 'boolean') {
-    return NextResponse.json({ error: 'userId y blocked requeridos' }, { status: 400 })
+  const { userId, blocked, plan } = body
+  if (!userId || typeof userId !== 'string') {
+    return NextResponse.json({ error: 'userId requerido' }, { status: 400 })
   }
 
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, name: true } })
@@ -82,10 +95,22 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 })
   }
 
-  await prisma.user.update({ where: { id: userId }, data: { blocked } })
+  // Cambio de plan
+  if (plan !== undefined) {
+    if (!VALID_PLANS.includes(plan as typeof VALID_PLANS[number])) {
+      return NextResponse.json({ error: 'Plan inválido. Valores: free, pro, empresarial' }, { status: 400 })
+    }
+    await prisma.user.update({ where: { id: userId }, data: { plan } })
+    console.log(`[sistema] Plan cambiado a '${plan}': ${user.email} (${userId})`)
+    return NextResponse.json({ ok: true, plan, user: { email: user.email, name: user.name } })
+  }
 
+  // Cambio de estado bloqueado
+  if (typeof blocked !== 'boolean') {
+    return NextResponse.json({ error: 'blocked (boolean) o plan (string) requerido' }, { status: 400 })
+  }
+  await prisma.user.update({ where: { id: userId }, data: { blocked } })
   const action = blocked ? 'bloqueado' : 'desbloqueado'
   console.log(`[sistema] Usuario ${action}: ${user.email} (${userId})`)
-
   return NextResponse.json({ ok: true, blocked, user: { email: user.email, name: user.name } })
 }

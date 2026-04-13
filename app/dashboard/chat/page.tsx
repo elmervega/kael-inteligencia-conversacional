@@ -222,7 +222,7 @@ export default function ChatPage() {
   // Loading de sesión
   if (status === "loading") {
     return (
-      <div className="flex-1 flex items-center justify-center h-[calc(100vh-56px)] md:h-screen" style={{ backgroundColor: "#000318" }}>
+      <div className="flex-1 flex items-center justify-center h-[calc(100dvh-56px)] md:h-screen" style={{ backgroundColor: "#000318" }}>
         <div className="flex gap-2">
           {[0, 150, 300].map((delay) => (
             <div
@@ -240,11 +240,11 @@ export default function ChatPage() {
 
   return (
     <div
-      className="flex flex-col h-[calc(100vh-56px)] md:h-screen"
+      className="flex flex-col h-[calc(100dvh-56px)] md:h-screen overflow-hidden"
       style={{ backgroundColor: "#000318" }}
     >
       {/* Header */}
-      <div className="bg-[#000318]/80 backdrop-blur-md border-b border-slate-800 px-6 py-4 flex items-center justify-between shrink-0 z-10">
+      <div className="bg-[#000318]/80 backdrop-blur-md border-b border-slate-800 px-4 md:px-6 py-3 md:py-4 flex items-center justify-between shrink-0 z-10">
         <div className="flex items-center gap-3">
           <div className="kael-avatar-animate w-10 h-10 rounded-full flex items-center justify-center border border-indigo-900/40 bg-indigo-950/30 shrink-0">
             <KaelIcon className="w-5 h-5 text-indigo-400" />
@@ -257,8 +257,8 @@ export default function ChatPage() {
 
         <div className="flex items-center gap-3">
           {remaining !== null && (
-            <span className="text-[0.68rem] text-zinc-600">
-              {remaining} mensajes restantes
+            <span className="hidden sm:inline text-[0.68rem] text-zinc-600">
+              {remaining} msg
             </span>
           )}
           {messages.length > 0 && (
@@ -267,14 +267,17 @@ export default function ChatPage() {
               className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors px-2 py-1 rounded"
               title="Limpiar conversación"
             >
-              Limpiar
+              <span className="hidden sm:inline">Limpiar</span>
+              <svg className="sm:hidden w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+              </svg>
             </button>
           )}
         </div>
       </div>
 
       {/* Área de mensajes */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-5 kael-scroll relative">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 space-y-4 md:space-y-5 kael-scroll relative">
         {/* Fondo geométrico */}
         <div
           className="absolute inset-0 z-0 opacity-10 pointer-events-none"
@@ -326,7 +329,7 @@ export default function ChatPage() {
               </div>
             )}
             <div
-              className={`px-5 py-3.5 max-w-[75%] text-[14px] leading-relaxed break-words transition-all duration-200 hover:-translate-y-0.5 ${
+              className={`px-4 md:px-5 py-3 md:py-3.5 max-w-[85%] md:max-w-[75%] text-[13px] md:text-[14px] leading-relaxed break-words transition-all duration-200 hover:-translate-y-0.5 ${
                 msg.role === "user"
                   ? "bg-gradient-to-br from-indigo-500 via-indigo-600 to-indigo-700 text-white rounded-[20px] rounded-br-sm shadow-[0_0_15px_-3px_rgba(79,70,229,.35)] whitespace-pre-wrap"
                   : "bg-[#0a0f26] text-slate-200 border border-slate-800 rounded-[20px] rounded-bl-sm"
@@ -393,8 +396,8 @@ export default function ChatPage() {
       )}
 
       {/* Input */}
-      <div className="bg-[#000318] border-t border-slate-800 px-6 py-4 shrink-0 z-10">
-        <div className="flex items-center gap-2 bg-[#0a0f26] px-2 py-1.5 rounded-full border border-slate-800 focus-within:border-indigo-600 focus-within:ring-2 focus-within:ring-indigo-800/40 transition-all duration-200">
+      <div className="bg-[#000318] border-t border-slate-800 px-3 md:px-6 py-3 md:py-4 shrink-0 z-10 pb-[max(12px,env(safe-area-inset-bottom))]">
+        <div className="flex items-center gap-2 bg-[#0a0f26] px-2 py-1 md:py-1.5 rounded-full border border-slate-800 focus-within:border-indigo-600 focus-within:ring-2 focus-within:ring-indigo-800/40 transition-all duration-200">
           <input
             ref={inputRef}
             type="text"
@@ -416,7 +419,7 @@ export default function ChatPage() {
             </svg>
           </button>
         </div>
-        <p className="text-center text-[0.65rem] text-zinc-700 mt-2">
+        <p className="text-center text-[0.6rem] text-zinc-800 mt-1.5 hidden sm:block">
           Kael puede cometer errores — verifica información importante
         </p>
       </div>
