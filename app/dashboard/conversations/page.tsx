@@ -1,5 +1,8 @@
 // app/dashboard/conversations/page.tsx
+import type { Metadata } from 'next'
 import { auth } from '@/lib/auth'
+
+export const metadata: Metadata = { title: 'Conversaciones', robots: { index: false } }
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'

@@ -1,5 +1,12 @@
 // app/dashboard/page.tsx
+import type { Metadata } from 'next'
 import { auth } from '@/lib/auth'
+
+// El template en layout.tsx resuelve esto como "Inicio | Kael"
+export const metadata: Metadata = {
+  title: 'Inicio',
+  robots: { index: false },
+}
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'

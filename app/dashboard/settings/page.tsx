@@ -1,6 +1,9 @@
 // app/dashboard/settings/page.tsx
+import type { Metadata } from 'next'
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
+
+export const metadata: Metadata = { title: 'Configuración', robots: { index: false } }
 import KaelConfigForm from '@/components/dashboard/KaelConfigForm'
 
 export default async function SettingsPage() {

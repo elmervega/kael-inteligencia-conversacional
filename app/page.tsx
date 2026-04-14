@@ -3,8 +3,18 @@
 import { motion, useScroll, useTransform, type Variants } from 'framer-motion'
 import { useRef, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import AnimatedBackground from '@/components/AnimatedBackground'
+import dynamic from 'next/dynamic'
 import Navbar from '@/components/Navbar'
+
+// AnimatedBackground es puramente decorativo (gradientes animados de fondo).
+// Con ssr:false y loading lazy:
+//   1. No bloquea el hilo principal durante la carga inicial → mejora TBT y LCP.
+//   2. No se renderiza en el servidor → evita hydration mismatch de animaciones CSS.
+//   3. El usuario ve el contenido del hero inmediatamente; el fondo aparece ~100ms después.
+const AnimatedBackground = dynamic(
+  () => import('@/components/AnimatedBackground'),
+  { ssr: false, loading: () => null }
+)
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 40 },
