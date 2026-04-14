@@ -211,12 +211,52 @@ export default function ChatPage() {
   const clearChat = () => {
     setMessages([]);
     setRemaining(null);
-    // Tarea 3: Limpiar también el localStorage al limpiar la conversación
     if (session?.user?.email) {
       try {
         localStorage.removeItem(`kael-chat-${session.user.email}`);
       } catch {}
     }
+  };
+
+  const exportChatToMarkdown = () => {
+    if (messages.length === 0) return;
+
+    const userPlan = (session?.user as any)?.plan ?? "free";
+    const userName = session?.user?.name?.split(" ")[0] ?? "Tú";
+
+    // Construir el cuerpo del Markdown
+    const lines = messages.map((msg) => {
+      const speaker = msg.role === "user" ? `**${userName}**` : "**Kael**";
+      // Preservar saltos de línea del contenido original
+      const body = msg.content.replace(/\n/g, "  \n");
+      return `${speaker}: ${body}`;
+    });
+
+    const date = new Date().toLocaleDateString("es", {
+      year: "numeric", month: "long", day: "numeric",
+      hour: "2-digit", minute: "2-digit",
+    });
+
+    let md = `# Conversación con Kael\n*Exportada el ${date}*\n\n---\n\n`;
+    md += lines.join("\n\n");
+
+    // Growth hack: firma solo en plan free
+    if (userPlan === "free") {
+      md += `\n\n---\n*Conversación generada con Kael.quest 🤖 — Descubre tu propio asistente de Inteligencia Artificial gratis aquí: [https://kael.quest](https://kael.quest)*`;
+    }
+
+    // Crear Blob y disparar descarga sin librerías externas
+    const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const dateSlug = new Date().toISOString().slice(0, 10); // "2026-04-13"
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `kael-conversacion-${dateSlug}.md`;
+    document.body.appendChild(a);
+    a.click();
+    // Limpiar el objeto URL y el nodo del DOM inmediatamente
+    a.remove();
+    URL.revokeObjectURL(url);
   };
 
   // Loading de sesión
@@ -262,16 +302,33 @@ export default function ChatPage() {
             </span>
           )}
           {messages.length > 0 && (
-            <button
-              onClick={clearChat}
-              className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors px-2 py-1 rounded"
-              title="Limpiar conversación"
-            >
-              <span className="hidden sm:inline">Limpiar</span>
-              <svg className="sm:hidden w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
-              </svg>
-            </button>
+            <>
+              {/* Botón exportar — visible en todos los tamaños */}
+              <button
+                onClick={exportChatToMarkdown}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-zinc-400 border border-zinc-800/60 hover:border-indigo-700/50 hover:text-indigo-300 hover:bg-indigo-950/30 transition-all duration-200"
+                title="Exportar conversación como Markdown"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                <span className="hidden sm:inline">Exportar</span>
+              </button>
+
+              {/* Botón limpiar */}
+              <button
+                onClick={clearChat}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-zinc-600 hover:text-zinc-400 hover:bg-zinc-900/40 transition-all duration-200"
+                title="Limpiar conversación"
+              >
+                <span className="hidden sm:inline">Limpiar</span>
+                <svg className="sm:hidden w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                </svg>
+              </button>
+            </>
           )}
         </div>
       </div>
