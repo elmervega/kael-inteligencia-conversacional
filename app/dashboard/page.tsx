@@ -89,7 +89,7 @@ export default async function DashboardPage() {
   const memberSince = memberSinceDate.toLocaleDateString('es', { month: 'short', year: 'numeric' })
 
   return (
-    <div className="p-8 max-w-6xl">
+    <div className="p-4 sm:p-8 max-w-6xl">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-white tracking-tight mb-1">
@@ -122,23 +122,23 @@ export default async function DashboardPage() {
       </Link>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-7">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-7">
         {[
           { label: 'Conversaciones', value: stats.totalConversations, sub: 'Mensajes con Kael', icon: '💬', accent: true },
           { label: 'Recordatorios', value: stats.activeReminders, sub: 'Pendientes', icon: '🔔', accent: false },
           { label: 'Días con Kael', value: stats.daysSince, sub: `Miembro desde ${memberSince}`, icon: '📅', accent: false },
         ].map(s => (
-          <div key={s.label} className={`relative rounded-xl p-5 border overflow-hidden ${s.accent ? 'bg-gradient-to-br from-[#13113a] to-[#111] border-[#2a2560]' : 'bg-[#111] border-[#1e1e1e]'}`}>
-            <div className="absolute top-4 right-4 text-xl opacity-30">{s.icon}</div>
-            <p className="text-[0.72rem] uppercase tracking-wider text-zinc-500 mb-2">{s.label}</p>
+          <div key={s.label} className={`relative rounded-xl p-4 sm:p-5 border overflow-hidden ${s.accent ? 'bg-gradient-to-br from-[#13113a] to-[#111] border-[#2a2560]' : 'bg-[#111] border-[#1e1e1e]'}`}>
+            <div className="absolute top-3 right-3 text-xl opacity-40">{s.icon}</div>
+            <p className="text-xs font-medium uppercase tracking-wider text-zinc-300 mb-2 whitespace-normal break-words pr-8">{s.label}</p>
             <p className="text-3xl font-bold text-white">{s.value}</p>
-            <p className="text-[0.72rem] text-zinc-600 mt-1">{s.sub}</p>
+            <p className="text-xs text-zinc-400 mt-1 whitespace-normal">{s.sub}</p>
           </div>
         ))}
       </div>
 
       {/* Main grid */}
-      <div className="grid grid-cols-[1.45fr_1fr] gap-5 mb-5">
+      <div className="grid grid-cols-1 md:grid-cols-[1.45fr_1fr] gap-5 mb-5">
         {/* Config form — primary */}
         <KaelConfigForm isPro={isPro} />
 
