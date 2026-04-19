@@ -90,6 +90,18 @@ desktop.ini
 next-env.d.ts
 
 # ============================================
+# ANDROID (Capacitor)
+# ============================================
+# El directorio android/ se regenera con: npx cap add android
+# NO ignorar capacitor.config.ts ni assets/ — esos sí se commitean
+android/.gradle/
+android/app/build/
+android/build/
+android/.idea/
+android/local.properties
+android/app/release/
+
+# ============================================
 # DATABASE
 # ============================================
 /lib/generated/prisma

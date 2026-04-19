@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Color base de la app — coincide con el fondo oscuro de kael.quest -->
+    <color name="colorPrimary">#050505</color>
+    <color name="colorPrimaryDark">#050505</color>
+    <color name="colorAccent">#6366f1</color>
+    <!-- Fondo del splash screen y status bar -->
+    <color name="ic_launcher_background">#050505</color>
+</resources>

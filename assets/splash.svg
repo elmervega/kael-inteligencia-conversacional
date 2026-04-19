@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2732 2732" fill="none">
+  <!-- Fondo del splash screen — mismo fondo de la app -->
+  <rect width="2732" height="2732" fill="#050505"/>
+  <!-- Diamante centrado, proporcional para pantallas grandes -->
+  <g transform="translate(1366,1366) scale(40)">
+    <path d="M0 -22 L-16 -9 L0 4 L16 -9 Z" stroke="#6366f1" stroke-width="1.5" fill="none" stroke-linejoin="round"/>
+    <path d="M0 22 L-16 9 L0 -4 L16 9 Z"   stroke="#818cf8" stroke-width="1.5" fill="none" stroke-linejoin="round"/>
+    <path d="M-16 -9 L16 -9" stroke="#6366f1" stroke-width="1.5"/>
+    <path d="M-16 9 L16 9"   stroke="#818cf8" stroke-width="1.5"/>
+    <path d="M0 -4 L0 4"     stroke="#a5b4fc" stroke-width="1.5"/>
+  </g>
+</svg>
