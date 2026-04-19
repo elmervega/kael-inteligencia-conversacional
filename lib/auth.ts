@@ -52,7 +52,11 @@ export const {
         sameSite: 'lax' as const,
         path: '/',
         secure: process.env.NODE_ENV === 'production',
-        maxAge: 30 * 24 * 60 * 60, // 30 días — escribe al disco, no session-only
+        // maxAge + expires combinados: cobertura dual para todos los Android WebViews.
+        // Algunos WebViews solo persisten al disco si ven el atributo "Expires" en el
+        // Set-Cookie header; otros solo respetan "Max-Age". Ambos = garantía total.
+        maxAge: 30 * 24 * 60 * 60,
+        expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       },
     },
   },
