@@ -32,6 +32,31 @@ export const {
 } = NextAuth({
   ...authConfig,
   trustHost: true,
+
+  // Sesión JWT con maxAge explícito.
+  // Sin esto, NextAuth puede omitir Max-Age en la cookie y el WebView de Android
+  // la trata como session-only (volátil, en memoria) — se pierde al cerrar la app.
+  session: {
+    strategy: 'jwt',
+    maxAge: 30 * 24 * 60 * 60, // 30 días
+  },
+
+  // Forzar Max-Age en el Set-Cookie header.
+  // Android WebView Chromium exige que la cookie tenga Max-Age para escribirla al
+  // disco persistente. Sin este atributo, la cookie vive solo en RAM y muere con
+  // el proceso cuando el usuario cierra la app desde la multitarea.
+  cookies: {
+    sessionToken: {
+      options: {
+        httpOnly: true,
+        sameSite: 'lax' as const,
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 30 * 24 * 60 * 60, // 30 días — escribe al disco, no session-only
+      },
+    },
+  },
+
   providers: [
     Credentials({
       credentials: {

@@ -30,6 +30,12 @@ const config: CapacitorConfig = {
   },
 
   plugins: {
+    // Habilita el manejo nativo de cookies a través del CookieManager de Android.
+    // Asegura que el bridge de Capacitor use la capa nativa para leer/escribir
+    // cookies, reforzando la persistencia junto con CookieManager.flush() de MainActivity.
+    CapacitorCookies: {
+      enabled: true,
+    },
     StatusBar: {
       style: 'DARK',            // iconos blancos sobre fondo oscuro
       backgroundColor: '#050505',
