@@ -4,6 +4,4 @@
     <color name="colorPrimary">#050505</color>
     <color name="colorPrimaryDark">#050505</color>
     <color name="colorAccent">#6366f1</color>
-    <!-- Fondo del splash screen y status bar -->
-    <color name="ic_launcher_background">#050505</color>
 </resources>

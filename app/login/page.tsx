@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { signIn } from 'next-auth/react'
 import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
+import { Capacitor } from '@capacitor/core'
 import Link from 'next/link'
 
 type ErrorType = 'credentials' | 'rate_limit' | 'server' | 'email_not_verified' | 'user_blocked' | null
@@ -20,7 +21,7 @@ function EyeIcon({ open }: { open: boolean }) {
   )
 }
 
-function LoginForm() {
+function LoginForm({ isNative }: { isNative: boolean }) {
   const searchParams = useSearchParams()
   const justRegistered = searchParams.get('registered') === '1'
   const [form, setForm] = useState({ email: '', password: '' })
@@ -58,7 +59,6 @@ function LoginForm() {
       }
 
       if (result.error) {
-        // Auth.js v5 puede pasar el código en result.error o en la URL de retorno
         const returnUrl = result.url ?? ''
         const isEmailNotVerified =
           result.error === 'email_not_verified' ||
@@ -87,7 +87,6 @@ function LoginForm() {
         return
       }
 
-      // Success — full page redirect so the browser sends the fresh session cookie
       window.location.href = '/dashboard'
     } catch {
       setErrorType('server')
@@ -108,8 +107,14 @@ function LoginForm() {
 
   const hasError = () => errorType === 'credentials'
 
+  // Clases condicionales para touch targets nativos (mínimo 48px)
+  const inputClass = (error: boolean) =>
+    `w-full bg-zinc-900 border rounded-xl px-4 text-white placeholder-zinc-600 focus:outline-none transition ${
+      isNative ? 'py-4 text-base' : 'py-3 text-sm'
+    } ${error ? 'border-red-500/60 focus:border-red-500' : 'border-zinc-800 focus:border-zinc-600'}`
+
   return (
-    <div className="border border-zinc-800 rounded-2xl p-8 bg-zinc-900/20 backdrop-blur-sm">
+    <div className={`border border-zinc-800 rounded-2xl bg-zinc-900/20 backdrop-blur-sm ${isNative ? 'p-6' : 'p-8'}`}>
       {justRegistered && (
         <motion.div
           initial={{ opacity: 0, y: -4 }}
@@ -120,16 +125,22 @@ function LoginForm() {
           Cuenta creada. Inicia sesión para continuar.
         </motion.div>
       )}
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="text-xs text-zinc-500 uppercase tracking-wider mb-2 block">Email o teléfono</label>
+          <label className="text-xs text-zinc-500 uppercase tracking-wider mb-2 block">
+            Email o teléfono
+          </label>
           <input
             type="text"
+            inputMode="email"
+            autoCapitalize="none"
+            autoCorrect="off"
+            autoComplete="email"
+            spellCheck={false}
             value={form.email}
             onChange={e => { setForm({ ...form, email: e.target.value }); setErrorType(null) }}
-            className={`w-full bg-zinc-900 border rounded-lg px-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none transition ${
-              hasError() ? 'border-red-500/60 focus:border-red-500' : 'border-zinc-800 focus:border-zinc-600'
-            }`}
+            className={inputClass(hasError())}
             placeholder="tu@email.com o +1234567890"
             required
           />
@@ -145,18 +156,19 @@ function LoginForm() {
           <div className="relative">
             <input
               type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
               value={form.password}
               onChange={e => { setForm({ ...form, password: e.target.value }); setErrorType(null) }}
-              className={`w-full bg-zinc-900 border rounded-lg px-4 py-3 pr-11 text-sm text-white placeholder-zinc-600 focus:outline-none transition ${
-                hasError() ? 'border-red-500/60 focus:border-red-500' : 'border-zinc-800 focus:border-zinc-600'
-              }`}
+              className={`${inputClass(hasError())} ${isNative ? 'pr-14' : 'pr-11'}`}
               placeholder="Tu contraseña"
               required
             />
             <button
               type="button"
               onClick={() => setShowPassword(v => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+              className={`absolute right-0 top-0 h-full flex items-center justify-center text-zinc-500 hover:text-zinc-300 transition-colors ${
+                isNative ? 'px-4' : 'px-3'
+              }`}
               tabIndex={-1}
               aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
             >
@@ -202,13 +214,15 @@ function LoginForm() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-3 bg-white text-black rounded-full text-sm font-medium hover:bg-zinc-100 transition disabled:opacity-50"
+          className={`w-full bg-white text-black rounded-full font-medium hover:bg-zinc-100 transition disabled:opacity-50 ${
+            isNative ? 'py-4 text-base' : 'py-3 text-sm'
+          }`}
         >
           {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
         </button>
       </form>
 
-      <p className="text-center text-zinc-500 text-sm mt-6">
+      <p className={`text-center text-zinc-500 text-sm mt-6 ${isNative ? 'pb-2' : ''}`}>
         ¿No tienes cuenta?{' '}
         <Link href="/register" className="text-white hover:text-zinc-300 transition">
           Crear cuenta
@@ -219,31 +233,51 @@ function LoginForm() {
 }
 
 export default function LoginPage() {
+  const [isNative, setIsNative] = useState(false)
+
+  useEffect(() => {
+    setIsNative(Capacitor.isNativePlatform())
+  }, [])
+
   return (
-    <main className="min-h-screen bg-[#050505] text-white flex items-center justify-center px-4">
+    <main className={`bg-[#050505] text-white flex items-center justify-center px-4 ${
+      isNative ? 'min-h-[100dvh] py-10' : 'min-h-screen'
+    }`}>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
         className="w-full max-w-md"
       >
-        <div className="mb-6">
-          <Link href="/" className="inline-flex items-center gap-2 text-zinc-500 hover:text-white transition text-sm">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            Volver al inicio
-          </Link>
-        </div>
-        <div className="text-center mb-8">
-          <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">
-            Kael
-          </Link>
+        {/* "Volver al inicio" no tiene sentido dentro de la app nativa */}
+        {!isNative && (
+          <div className="mb-6">
+            <Link href="/" className="inline-flex items-center gap-2 text-zinc-500 hover:text-white transition text-sm">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Volver al inicio
+            </Link>
+          </div>
+        )}
+
+        <div className={`text-center ${isNative ? 'mb-6' : 'mb-8'}`}>
+          {isNative ? (
+            <span className="text-2xl font-bold bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">
+              Kael
+            </span>
+          ) : (
+            <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">
+              Kael
+            </Link>
+          )}
           <p className="text-zinc-500 mt-2 text-sm">Bienvenido de vuelta</p>
         </div>
 
         <Suspense fallback={
           <div className="border border-zinc-800 rounded-2xl p-8 bg-zinc-900/20 backdrop-blur-sm animate-pulse h-64" />
         }>
-          <LoginForm />
+          <LoginForm isNative={isNative} />
         </Suspense>
       </motion.div>
     </main>

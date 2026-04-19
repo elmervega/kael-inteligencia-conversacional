@@ -4,6 +4,7 @@ import { motion, useScroll, useTransform, type Variants } from 'framer-motion'
 import { useRef, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
+import { Capacitor } from '@capacitor/core'
 import Navbar from '@/components/Navbar'
 
 // AnimatedBackground es puramente decorativo (gradientes animados de fondo).
@@ -89,11 +90,134 @@ export default function Home() {
   const heroY = useTransform(scrollYProgress, [0, 1], ['0%', '20%'])
   const heroOpacity = useTransform(scrollYProgress, [0, 0.8], [1, 0])
   const [theme, setTheme] = useState(themes.night)
+  // Tres estados posibles: null = detectando, true = app móvil, false = web
+  const [isMobileApp, setIsMobileApp] = useState<boolean | null>(null)
 
   useEffect(() => {
     setTheme(themes[getTimeTheme()])
+
+    // Detección bulletproof: Capacitor bridge O userAgent Android
+    // window.Capacitor: inyectado por el bridge nativo antes del primer render
+    // "Linux; Android": presente en TODOS los WebViews de Android (no falseable por web)
+    const hasCapacitor = !!(window as any).Capacitor?.isNative
+    const isAndroidWebView = /Linux; Android/.test(navigator.userAgent)
+    setIsMobileApp(hasCapacitor || isAndroidWebView)
   }, [])
 
+  // Mientras detecta (primer frame), fondo negro para evitar flash de la landing web
+  if (isMobileApp === null) {
+    return <div style={{ background: '#000', minHeight: '100dvh' }} />
+  }
+
+  // ─── WELCOME SCREEN NATIVA ─────────────────────────────────────────────────
+  if (isMobileApp) {
+    return (
+      <main
+        className="min-h-[100dvh] text-white overflow-hidden flex flex-col transition-colors duration-1000"
+        style={{ backgroundColor: theme.bg }}
+      >
+        <AnimatedBackground primary={theme.primary} secondary={theme.secondary} />
+
+        {/* Diamante de fondo — idéntico al web */}
+        <div className="absolute inset-0 flex items-end justify-center pointer-events-none select-none overflow-hidden">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.92, rotate: -8 }}
+            animate={{ opacity: 1, scale: 1, rotate: 0 }}
+            transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1], delay: 0.3 }}
+            className="translate-y-[30%]"
+          >
+            <motion.div animate={{ rotate: 360 }} transition={{ duration: 120, repeat: Infinity, ease: 'linear' }}>
+              <svg width="700" height="700" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-[360px] h-[360px]">
+                <defs>
+                  <linearGradient id="ds2" x1="50" y1="0" x2="50" y2="100" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stopColor={theme.diamond1} stopOpacity="0.9" />
+                    <stop offset="50%" stopColor={theme.diamond2} stopOpacity="0.4" />
+                    <stop offset="100%" stopColor={theme.diamond2} stopOpacity="0.05" />
+                  </linearGradient>
+                  <linearGradient id="df2" x1="50" y1="0" x2="50" y2="100" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stopColor={theme.diamond1} stopOpacity="0.07" />
+                    <stop offset="100%" stopColor={theme.diamond2} stopOpacity="0.01" />
+                  </linearGradient>
+                  <filter id="dg2" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur stdDeviation="1.5" result="blur" />
+                    <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                  </filter>
+                  <linearGradient id="fm2" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="white" stopOpacity="1" />
+                    <stop offset="70%" stopColor="white" stopOpacity="0.6" />
+                    <stop offset="100%" stopColor="white" stopOpacity="0" />
+                  </linearGradient>
+                  <mask id="fb2"><rect width="100" height="100" fill="url(#fm2)" /></mask>
+                </defs>
+                <g mask="url(#fb2)" filter="url(#dg2)">
+                  <polygon points="50,2 98,50 50,98 2,50" fill="url(#df2)" stroke="url(#ds2)" strokeWidth="0.4" />
+                  <polygon points="50,14 86,50 50,86 14,50" fill="none" stroke="url(#ds2)" strokeWidth="0.25" strokeOpacity="0.4" />
+                  <polygon points="50,26 74,50 50,74 26,50" fill="none" stroke="url(#ds2)" strokeWidth="0.2" strokeOpacity="0.25" />
+                  <line x1="50" y1="2" x2="50" y2="98" stroke="url(#ds2)" strokeWidth="0.15" strokeOpacity="0.2" />
+                  <line x1="2" y1="50" x2="98" y2="50" stroke="url(#ds2)" strokeWidth="0.15" strokeOpacity="0.2" />
+                  <circle cx="50" cy="50" r="1.2" fill="#6366f1" fillOpacity="0.5" />
+                </g>
+              </svg>
+            </motion.div>
+          </motion.div>
+        </div>
+
+        {/* Glow central */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div
+            className="w-[500px] h-[500px] rounded-full blur-[130px] transition-colors duration-1000"
+            style={{ backgroundColor: `${theme.glow}18` }}
+          />
+        </div>
+
+        {/* Contenido centrado */}
+        <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 text-center">
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            variants={stagger}
+            className="w-full max-w-sm"
+          >
+            <motion.div variants={fadeUp} className="inline-flex items-center gap-2 mb-8">
+              <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: theme.pulse }} />
+              <span className="text-xs tracking-[0.2em] uppercase text-zinc-500 font-light">
+                {theme.label} · Inteligencia conversacional
+              </span>
+            </motion.div>
+
+            <motion.h1 variants={fadeUp} className="text-[clamp(3.5rem,16vw,5.5rem)] font-bold leading-[0.9] tracking-tight mb-8">
+              <span className="block text-white">No es una IA.</span>
+              <span className="block bg-gradient-to-b from-zinc-300 to-zinc-600 bg-clip-text text-transparent">
+                Es Kael.
+              </span>
+            </motion.h1>
+
+            <motion.p variants={fadeUp} className="text-base text-zinc-500 leading-relaxed mb-12 font-light">
+              Una presencia que te <span className="text-zinc-300">escucha</span>, recuerda y cuestiona.
+            </motion.p>
+
+            {/* Botones full-width nativos — touch targets 56px */}
+            <motion.div variants={fadeUp} className="flex flex-col gap-3 w-full">
+              <button
+                onClick={() => router.push('/login')}
+                className="w-full py-4 bg-white text-black text-base font-medium rounded-full active:scale-[0.98] transition-transform"
+              >
+                Iniciar sesión
+              </button>
+              <button
+                onClick={() => router.push('/register')}
+                className="w-full py-4 text-base text-zinc-300 border border-zinc-700 rounded-full active:scale-[0.98] transition-transform"
+              >
+                Crear cuenta
+              </button>
+            </motion.div>
+          </motion.div>
+        </div>
+      </main>
+    )
+  }
+
+  // ─── LANDING PAGE WEB — sin cambios ────────────────────────────────────────
   return (
     <main className="min-h-screen text-white overflow-hidden transition-colors duration-1000" style={{ backgroundColor: theme.bg }}>
       <AnimatedBackground primary={theme.primary} secondary={theme.secondary} />
