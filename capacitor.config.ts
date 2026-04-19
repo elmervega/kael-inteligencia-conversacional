@@ -13,11 +13,15 @@ const config: CapacitorConfig = {
 
   server: {
     // La app abre directamente kael.quest en pantalla completa.
-    // No hay build estático local — el WebView actúa como un browser sin chrome.
     url: 'https://kael.quest',
-    // Permite que el WebView de Android cargue la URL sin restricciones CORS internas.
-    cleartext: false,   // HTTPS → cleartext desactivado (correcto para producción)
+    // hostname + androidScheme = "El Truco Maestro" de persistencia de cookies.
+    // Sin hostname, el WebView tiene origen "capacitor://localhost" → las cookies
+    // de kael.quest se tratan como TERCEROS → Android puede borrarlas en force-kill.
+    // Con hostname = 'kael.quest', el WebView adopta ese origen como propio →
+    // cookies de kael.quest son PRIMERA PARTE → persistencia nativa garantizada.
+    hostname: 'kael.quest',
     androidScheme: 'https',
+    cleartext: false,
   },
 
   android: {
