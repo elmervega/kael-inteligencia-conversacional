@@ -3,35 +3,38 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { Preferences } from '@capacitor/preferences'
-import { Capacitor } from '@capacitor/core'
+import { Capacitor, CapacitorCookies } from '@capacitor/core'
 
-const TOKEN_KEY = 'kael_mobile_token'
-// sessionStorage persiste en reload() pero se borra al matar la app.
-// Evita el loop: restore → reload → restore → reload infinito.
+const TOKEN_KEY   = 'kael_mobile_token'
 const HYDRATED_KEY = 'kael_hydrated'
+const DOMAIN      = 'kael.quest'
 
 export default function MobileHydrator() {
-  const isNative = Capacitor.isNativePlatform()
-
-  // En nativo arrancamos bloqueando. En web nunca bloqueamos.
-  const [isHydrating, setIsHydrating] = useState(() => {
-    try { return Capacitor.isNativePlatform() } catch { return false }
-  })
+  // isMounted: evita hydration mismatch — SSR siempre renderiza null.
+  const [isMounted, setIsMounted] = useState(false)
+  // isHydrating: escudo visual mientras restauramos la sesión en nativo.
+  const [isHydrating, setIsHydrating] = useState(false)
 
   const { data: session, status } = useSession()
   const wasAuthenticatedRef = useRef(false)
 
-  // ── RESTAURACIÓN INICIAL (solo al montar, una vez) ────────────────────
+  // ── RESTAURACIÓN INICIAL ───────────────────────────────────────────────
   useEffect(() => {
-    console.log(`🟢 [Hydrator] Montado. isNative=${isNative} | isHydrating=${isHydrating}`)
+    setIsMounted(true)
+
+    const isNative = Capacitor.isNativePlatform()
+    console.log(`🟢 [Hydrator] Montado. isNative=${isNative}`)
+
     if (!isNative) return
 
-    // Si ya restauramos en este ciclo de vida del WebView, soltar el escudo.
+    // Si ya restauramos en este ciclo de vida del WebView, no bloquear.
     if (sessionStorage.getItem(HYDRATED_KEY)) {
-      console.log('🟢 [Hydrator] Ya restaurado en esta sesión (sessionStorage) — liberando escudo.')
-      setIsHydrating(false)
+      console.log('🟢 [Hydrator] Ya restaurado en esta sesión — sin bloqueo.')
       return
     }
+
+    // Activar escudo y buscar token.
+    setIsHydrating(true)
 
     ;(async () => {
       console.log('🔍 [Hydrator] Buscando token en Preferences al iniciar...')
@@ -55,9 +58,22 @@ export default function MobileHydrator() {
         console.log(`✅ [Hydrator] Respuesta de /api/auth/mobile-restore: status=${res.status}`)
 
         if (res.ok) {
-          // Marcar que ya restauramos ANTES del reload para romper el loop.
+          const data = await res.json()
+
+          // Inyectar cookies vía motor nativo de Android (bypasa CORS/httpOnly).
+          await CapacitorCookies.setCookie({
+            url: `https://${DOMAIN}`,
+            key: '__Secure-authjs.session-token',
+            value: data.token,
+          })
+          await CapacitorCookies.setCookie({
+            url: `https://${DOMAIN}`,
+            key: 'authjs.session-token',
+            value: data.token,
+          })
+
+          console.log('✅ [Hydrator] Cookies inyectadas vía CapacitorCookies — recargando...')
           sessionStorage.setItem(HYDRATED_KEY, '1')
-          console.log('✅ [Hydrator] Restauración exitosa — recargando página...')
           window.location.reload()
         } else {
           const body = await res.text()
@@ -66,15 +82,15 @@ export default function MobileHydrator() {
           setIsHydrating(false)
         }
       } catch (err) {
-        console.log('❌ [Hydrator] Error en fetch a /api/auth/mobile-restore:', err)
+        console.log('❌ [Hydrator] Error en fetch:', err)
         setIsHydrating(false)
       }
     })()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, []) // solo al montar
 
   // ── GUARDAR TOKEN cuando el usuario está autenticado ──────────────────
   useEffect(() => {
-    if (!isNative || status === 'loading') return
+    if (!Capacitor.isNativePlatform() || status === 'loading') return
 
     if (status === 'authenticated') {
       wasAuthenticatedRef.current = true
@@ -100,13 +116,14 @@ export default function MobileHydrator() {
   }, [status, session]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── EL ESCUDO ──────────────────────────────────────────────────────────
-  if (isHydrating) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#000318]">
-        <span className="text-white text-sm">Conectando Kael...</span>
-      </div>
-    )
-  }
+  // SSR: isMounted=false → null (sin hydration mismatch)
+  // Web: isMounted=true, isHydrating=false → null
+  // Nativo restaurando: isMounted=true, isHydrating=true → overlay
+  if (!isMounted || !isHydrating) return null
 
-  return null
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#000318]">
+      <span className="text-white text-sm">Conectando Kael...</span>
+    </div>
+  )
 }
