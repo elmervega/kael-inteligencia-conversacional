@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { Capacitor } from '@capacitor/core'
 
 interface Prefs {
   kaelName: string
@@ -20,6 +21,12 @@ function ProBadge() {
 }
 
 function EcosistemaKael() {
+  const [isMounted, setIsMounted] = useState(false)
+  useEffect(() => { setIsMounted(true) }, [])
+  // SSR: isMounted=false → isNative=false → tarjeta APK visible (sin hydration mismatch)
+  // Nativo montado: isNative=true → tarjeta APK oculta
+  const isNative = isMounted && Capacitor.isNativePlatform()
+
   return (
     <div className="rounded-2xl border border-indigo-500/20 bg-gradient-to-br from-[#0d0b2a] to-[#0a0a12] p-6">
       <div className="flex items-center gap-2 mb-1">
@@ -32,8 +39,8 @@ function EcosistemaKael() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-        {/* Card 1: App Nativa APK */}
-        <div className="bg-[#0a0f26] border border-indigo-500/10 hover:border-indigo-500/30 rounded-xl p-5 transition-all duration-200 hover:shadow-[0_0_24px_rgba(99,102,241,0.08)]">
+        {/* Card 1: App Nativa APK — oculta si ya se está ejecutando en la APK */}
+        {!isNative && <div className="bg-[#0a0f26] border border-indigo-500/10 hover:border-indigo-500/30 rounded-xl p-5 transition-all duration-200 hover:shadow-[0_0_24px_rgba(99,102,241,0.08)]">
           <div className="w-10 h-10 rounded-lg bg-indigo-500/10 flex items-center justify-center mb-4">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-indigo-400">
               <rect x="5" y="2" width="14" height="20" rx="2"/>
@@ -57,7 +64,7 @@ function EcosistemaKael() {
             </svg>
             Descargar APK
           </a>
-        </div>
+        </div>}
 
         {/* Card 2: Soporte Técnico */}
         <div className="bg-[#0a0f26] border border-[#0088cc]/10 hover:border-[#0088cc]/30 rounded-xl p-5 transition-all duration-200 hover:shadow-[0_0_24px_rgba(0,136,204,0.08)]">
