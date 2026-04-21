@@ -25,9 +25,20 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         CookieManager cm = CookieManager.getInstance();
+
+        // Aceptar cookies globalmente (primera parte)
         cm.setAcceptCookie(true);
-        cm.setAcceptThirdPartyCookies(bridge.getWebView(), true);
+
+        // Aceptar cookies de terceros — validar nulos por si el bridge
+        // no está completamente inicializado en este punto del ciclo de vida
+        if (getBridge() != null && getBridge().getWebView() != null) {
+            cm.setAcceptThirdPartyCookies(getBridge().getWebView(), true);
+        }
+
+        // Flush inicial al disco para persistir cualquier cookie ya en RAM
+        cm.flush();
     }
 
     @Override
