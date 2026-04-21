@@ -3,12 +3,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { Preferences } from '@capacitor/preferences'
-import { Capacitor, CapacitorCookies } from '@capacitor/core'
+import { Capacitor } from '@capacitor/core'
 
 const TOKEN_KEY        = 'kael_mobile_token'
 const LAST_HYDRATE_KEY = 'kael_last_hydrate'
 const LOOP_GUARD_MS    = 10_000 // 10 segundos
-const DOMAIN           = 'kael.quest'
 
 export default function MobileHydrator() {
   const [isMounted, setIsMounted] = useState(false)
@@ -30,16 +29,12 @@ export default function MobileHydrator() {
 
     ;(async () => {
       // ── ANTI-LOOP POR TIMESTAMP ──────────────────────────────────────
-      // Si el reload() post-inyección activa este useEffect de nuevo,
-      // el timestamp estará dentro de la ventana de 10s → abortar.
-      // Sobrevive a force-kill (Preferences persisten) pero la ventana es
-      // tan corta que en la siguiente apertura real ya habrá expirado.
       const { value: lastHydrateRaw } = await Preferences.get({ key: LAST_HYDRATE_KEY })
       const lastHydrate = Number(lastHydrateRaw ?? 0)
-      const elapsed = Date.now() - lastHydrate
+      const elapsed     = Date.now() - lastHydrate
 
       if (lastHydrate && elapsed < LOOP_GUARD_MS) {
-        console.log(`🟢 [Hydrator] Timestamp reciente (${elapsed}ms < ${LOOP_GUARD_MS}ms) — reload post-inyección, sin re-intentar.`)
+        console.log(`🟢 [Hydrator] Timestamp reciente (${elapsed}ms < ${LOOP_GUARD_MS}ms) — navegación post-inyección detectada.`)
         setIsHydrating(false)
         return
       }
@@ -54,54 +49,17 @@ export default function MobileHydrator() {
         return
       }
 
-      console.log(`✅ [Hydrator] Token encontrado (${token.length} chars), llamando a /api/auth/mobile-restore...`)
+      console.log(`✅ [Hydrator] Token encontrado (${token.length} chars) — iniciando navegación HTTP a /api/auth/mobile-restore...`)
 
-      try {
-        const res = await fetch('/api/auth/mobile-restore', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mobileToken: token }),
-        })
+      // Guardar timestamp ANTES de navegar para que el guard lo encuentre
+      // al montar el componente en la página destino (/dashboard).
+      await Preferences.set({ key: LAST_HYDRATE_KEY, value: Date.now().toString() })
 
-        console.log(`✅ [Hydrator] Respuesta de /api/auth/mobile-restore: status=${res.status}`)
-
-        if (res.ok) {
-          const data = await res.json()
-
-          console.log('🍪 [Hydrator] Cookies antes de inyectar:', document.cookie || '(vacío)')
-
-          await CapacitorCookies.setCookie({
-            url: `https://${DOMAIN}`,
-            key: '__Secure-authjs.session-token',
-            value: data.token,
-          })
-          await CapacitorCookies.setCookie({
-            url: `https://${DOMAIN}`,
-            key: 'authjs.session-token',
-            value: data.token,
-          })
-
-          const cookiesAfter = await CapacitorCookies.getCookies({ url: `https://${DOMAIN}` })
-          console.log('🍪 [Hydrator] Cookies después de inyectar:', JSON.stringify(cookiesAfter))
-
-          console.log('⏳ [Hydrator] Esperando flush del CookieManager (1s)...')
-          await new Promise(resolve => setTimeout(resolve, 1000))
-
-          // Guardar timestamp ANTES del reload — el anti-loop lo leerá en el siguiente montaje.
-          await Preferences.set({ key: LAST_HYDRATE_KEY, value: Date.now().toString() })
-
-          console.log('✅ [Hydrator] Timestamp guardado — recargando...')
-          window.location.reload()
-        } else {
-          const body = await res.text()
-          console.log(`❌ [Hydrator] Token inválido/expirado (${res.status}): ${body} — limpiando.`)
-          await Preferences.remove({ key: TOKEN_KEY })
-          setIsHydrating(false)
-        }
-      } catch (err) {
-        console.log('❌ [Hydrator] Error en fetch:', err)
-        setIsHydrating(false)
-      }
+      // Patrón OAuth/Magic Link: navegación GET de primera parte.
+      // El servidor valida el token, inyecta Set-Cookie httpOnly y hace 302 → /dashboard.
+      // El WebView ejecuta esta navegación como una solicitud principal →
+      // imposible de bloquear por CORS, Secure Context ni CookieManager async.
+      window.location.href = `/api/auth/mobile-restore?token=${encodeURIComponent(token)}`
     })()
   }, [])
 
