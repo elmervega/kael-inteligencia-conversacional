@@ -5,9 +5,8 @@ import { useSession } from 'next-auth/react'
 import { Preferences } from '@capacitor/preferences'
 import { Capacitor, CapacitorCookies } from '@capacitor/core'
 
-const TOKEN_KEY   = 'kael_mobile_token'
-const HYDRATED_KEY = 'kael_hydrated'
-const DOMAIN      = 'kael.quest'
+const TOKEN_KEY = 'kael_mobile_token'
+const DOMAIN    = 'kael.quest'
 
 export default function MobileHydrator() {
   // isMounted: evita hydration mismatch — SSR siempre renderiza null.
@@ -23,13 +22,16 @@ export default function MobileHydrator() {
     setIsMounted(true)
 
     const isNative = Capacitor.isNativePlatform()
-    console.log(`🟢 [Hydrator] Montado. isNative=${isNative}`)
+    console.log(`🟢 [Hydrator] Montado. isNative=${isNative} | url=${window.location.href}`)
 
     if (!isNative) return
 
-    // Si ya restauramos en este ciclo de vida del WebView, no bloquear.
-    if (sessionStorage.getItem(HYDRATED_KEY)) {
-      console.log('🟢 [Hydrator] Ya restaurado en esta sesión — sin bloqueo.')
+    // Anti-loop: si la URL ya tiene ?hydrated=true significa que este ciclo
+    // ya inyectó las cookies en el render anterior. No volver a intentarlo.
+    const hasHydrated = window.location.search.includes('hydrated=true')
+    if (hasHydrated) {
+      console.log('🟢 [Hydrator] Parámetro ?hydrated=true detectado — restauración ya completada.')
+      setIsHydrating(false)
       return
     }
 
@@ -81,14 +83,16 @@ export default function MobileHydrator() {
           console.log('🍪 [Hydrator] Cookies después de inyectar:', JSON.stringify(cookiesAfter))
 
           // Pausa de sincronización: el CookieManager de Android es asíncrono
-          // a nivel de I/O. Sin este delay, el reload() puede dispararse antes
+          // a nivel de I/O. Sin este delay, la navegación puede dispararse antes
           // de que las cookies lleguen al WebView y NextAuth no las encuentra.
           console.log('⏳ [Hydrator] Esperando flush del CookieManager (1s)...')
           await new Promise(resolve => setTimeout(resolve, 1000))
 
-          console.log('✅ [Hydrator] Flush completado — recargando...')
-          sessionStorage.setItem(HYDRATED_KEY, '1')
-          window.location.reload()
+          // Navegar con ?hydrated=true en lugar de reload() puro.
+          // El parámetro actúa como flag de anti-loop: sobrevive al force-kill
+          // (no usa sessionStorage) y se lee en el próximo montaje del componente.
+          console.log('✅ [Hydrator] Flush completado — navegando con ?hydrated=true...')
+          window.location.replace(window.location.pathname + '?hydrated=true')
         } else {
           const body = await res.text()
           console.log(`❌ [Hydrator] Token inválido/expirado (${res.status}): ${body} — limpiando.`)
@@ -123,9 +127,8 @@ export default function MobileHydrator() {
     }
 
     if (wasAuthenticatedRef.current) {
-      console.log('🔴 [Hydrator] Logout explícito — limpiando Preferences y sessionStorage.')
+      console.log('🔴 [Hydrator] Logout explícito — limpiando Preferences.')
       Preferences.remove({ key: TOKEN_KEY })
-      sessionStorage.removeItem(HYDRATED_KEY)
     }
   }, [status, session]) // eslint-disable-line react-hooks/exhaustive-deps
 
