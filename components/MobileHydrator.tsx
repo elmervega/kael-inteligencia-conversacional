@@ -60,7 +60,11 @@ export default function MobileHydrator() {
         if (res.ok) {
           const data = await res.json()
 
-          // Inyectar cookies vía motor nativo de Android (bypasa CORS/httpOnly).
+          // Verificación previa: ¿qué cookies ve el WebView ahora?
+          console.log('🍪 [Hydrator] Cookies antes de inyectar:', document.cookie || '(vacío)')
+
+          // Inyectar ambas variantes vía motor nativo Android (CookieManager).
+          // URL debe coincidir EXACTAMENTE con el origen de la app.
           await CapacitorCookies.setCookie({
             url: `https://${DOMAIN}`,
             key: '__Secure-authjs.session-token',
@@ -72,7 +76,17 @@ export default function MobileHydrator() {
             value: data.token,
           })
 
-          console.log('✅ [Hydrator] Cookies inyectadas vía CapacitorCookies — recargando...')
+          // Verificación posterior: confirmar que el motor nativo las registró.
+          const cookiesAfter = await CapacitorCookies.getCookies({ url: `https://${DOMAIN}` })
+          console.log('🍪 [Hydrator] Cookies después de inyectar:', JSON.stringify(cookiesAfter))
+
+          // Pausa de sincronización: el CookieManager de Android es asíncrono
+          // a nivel de I/O. Sin este delay, el reload() puede dispararse antes
+          // de que las cookies lleguen al WebView y NextAuth no las encuentra.
+          console.log('⏳ [Hydrator] Esperando flush del CookieManager (1s)...')
+          await new Promise(resolve => setTimeout(resolve, 1000))
+
+          console.log('✅ [Hydrator] Flush completado — recargando...')
           sessionStorage.setItem(HYDRATED_KEY, '1')
           window.location.reload()
         } else {
