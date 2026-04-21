@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get('token')
 
   if (!token) {
-    return NextResponse.redirect(new URL('/login', request.url))
+    return NextResponse.redirect(new URL('/login', 'https://kael.quest'))
   }
 
   const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET ?? ''
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (!payload?.sub) {
-    return NextResponse.redirect(new URL('/login', request.url))
+    return NextResponse.redirect(new URL('/login', 'https://kael.quest'))
   }
 
   const expires = new Date(Date.now() + MAX_AGE * 1000)
@@ -46,5 +46,5 @@ export async function GET(request: NextRequest) {
   store.set(COOKIE_SECURE, token, cookieOptions)
 
   // 302 → el WebView navega al dashboard ya con las cookies en el jar nativo.
-  return NextResponse.redirect(new URL('/dashboard', request.url))
+  return NextResponse.redirect(new URL('/dashboard', 'https://kael.quest'))
 }
