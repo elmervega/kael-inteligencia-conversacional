@@ -27,16 +27,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', 'https://kael.quest'))
   }
 
-  const expires = new Date(Date.now() + MAX_AGE * 1000)
-  const store   = await cookies()
+  const store = await cookies()
 
   const cookieOptions = {
     httpOnly: true,
     secure: true,
     sameSite: 'lax' as const,
     path: '/',
-    maxAge: MAX_AGE,
-    expires,
+    maxAge: MAX_AGE, // Obligatorio: fuerza almacenamiento en disco en Android WebView
   }
 
   // Inyectar ambas variantes vía Set-Cookie en una navegación de primera parte.
