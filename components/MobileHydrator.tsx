@@ -7,7 +7,7 @@ import { Capacitor } from '@capacitor/core'
 
 const TOKEN_KEY        = 'kael_mobile_token'
 const LAST_HYDRATE_KEY = 'kael_last_hydrate'
-const LOOP_GUARD_MS    = 10_000 // 10 segundos
+const LOOP_GUARD_MS    = 5_000 // 5 segundos
 
 export default function MobileHydrator() {
   const [isMounted, setIsMounted] = useState(false)

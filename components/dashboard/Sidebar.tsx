@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import { useState, useEffect } from 'react'
+import { Preferences } from '@capacitor/preferences'
+import { Capacitor } from '@capacitor/core'
 
 interface SidebarProps {
   user: { name?: string | null; email?: string | null; plan?: string }
@@ -103,7 +105,13 @@ function NavLinks({
           </div>
         </div>
         <button
-          onClick={() => signOut({ callbackUrl: '/' })}
+          onClick={async () => {
+            if (Capacitor.isNativePlatform()) {
+              await Preferences.remove({ key: 'kael_last_hydrate' })
+              await Preferences.remove({ key: 'kael_mobile_token' })
+            }
+            signOut({ callbackUrl: '/' })
+          }}
           className="w-full mt-1 px-3 py-2 text-xs text-zinc-600 hover:text-zinc-400 transition-colors text-left"
         >
           Cerrar sesión
